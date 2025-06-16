@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Container, Row, Col, Card, Button, Table, Modal, Form, Alert, Badge, Tabs, Tab } from "react-bootstrap"
+import { Container, Row, Col, Card, Button, Table, Modal, Form, Alert, Badge, Tabs, Tab, Image } from "react-bootstrap"
 import api from "../services/api"
 
 const AdminDashboard = () => {
@@ -24,6 +24,8 @@ const AdminDashboard = () => {
     price: "",
     availableSlots: "",
     services: [],
+    images: [], // Array of File objects for new images
+    imagesToRemove: [] // Array of image paths to remove
   })
   const [alert, setAlert] = useState({ show: false, message: "", variant: "" })
 
@@ -34,14 +36,12 @@ const AdminDashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true)
-
       if (activeTab === "overview") {
         const [bookingStats, tourStats, reviewStats] = await Promise.all([
           api.get("/statistics/bookings"),
           api.get("/statistics/tours"),
           api.get("/statistics/reviews"),
         ])
-
         setStatistics({
           bookings: bookingStats.data,
           tours: tourStats.data,
@@ -71,31 +71,44 @@ const AdminDashboard = () => {
 
   const handleTourSubmit = async (e) => {
     e.preventDefault()
-
     try {
+      const formData = new FormData()
+      Object.keys(tourData).forEach((key) => {
+        if (key === "services") {
+          tourData.services.forEach((service, index) => {
+            formData.append(`services[${index}]`, service)
+          })
+        } else if (key === "images") {
+          tourData.images.forEach((image) => {
+            formData.append("images", image)
+          })
+        } else if (key === "imagesToRemove") {
+          tourData.imagesToRemove.forEach((image, index) => {
+            formData.append(`imagesToRemove[${index}]`, image)
+          })
+        } else {
+          formData.append(key, tourData[key])
+        }
+      })
       const url = editingTour ? `/tours/${editingTour._id}` : "/tours"
       const method = editingTour ? "put" : "post"
-
-      await api[method](url, {
-        ...tourData,
-        price: Number.parseFloat(tourData.price),
-        availableSlots: Number.parseInt(tourData.availableSlots),
-        services: tourData.services.filter((s) => s.trim() !== ""),
+      await api[method](url, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
       })
-
       setAlert({
         show: true,
         message: `Tour đã được ${editingTour ? "cập nhật" : "tạo"} thành công`,
         variant: "success",
       })
-
       setShowTourModal(false)
       resetTourForm()
       fetchData()
     } catch (error) {
       setAlert({
         show: true,
-        message: error.response?.data?.message || "Có lỗi xảy ra",
+        message: error.response?.data?.message || "Có lỗi xảy ra khi xử lý tour",
         variant: "danger",
       })
     }
@@ -114,6 +127,8 @@ const AdminDashboard = () => {
       price: tour.price.toString(),
       availableSlots: tour.availableSlots.toString(),
       services: tour.services || [],
+      images: [],
+      imagesToRemove: []
     })
     setShowTourModal(true)
   }
@@ -187,6 +202,8 @@ const AdminDashboard = () => {
       price: "",
       availableSlots: "",
       services: [],
+      images: [],
+      imagesToRemove: []
     })
   }
 
@@ -203,7 +220,6 @@ const AdminDashboard = () => {
 
   const getStatusBadge = (status, type = "booking") => {
     let statusMap = {}
-
     if (type === "booking") {
       statusMap = {
         pending: { text: "Chờ xác nhận", variant: "warning" },
@@ -218,7 +234,6 @@ const AdminDashboard = () => {
         rejected: { text: "Từ chối", variant: "danger" },
       }
     }
-
     const statusInfo = statusMap[status] || { text: status, variant: "secondary" }
     return <Badge bg={statusInfo.variant}>{statusInfo.text}</Badge>
   }
@@ -234,13 +249,11 @@ const AdminDashboard = () => {
       <Row>
         <Col>
           <h1 className="mb-4">Quản trị hệ thống</h1>
-
           {alert.show && (
             <Alert variant={alert.variant} onClose={() => setAlert({ show: false })} dismissible>
               {alert.message}
             </Alert>
           )}
-
           <Tabs activeKey={activeTab} onSelect={setActiveTab} className="mb-4">
             <Tab eventKey="overview" title="Tổng quan">
               {loading ? (
@@ -295,7 +308,6 @@ const AdminDashboard = () => {
                 </Row>
               )}
             </Tab>
-
             <Tab eventKey="tours" title="Quản lý Tours">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h4>Danh sách Tours</h4>
@@ -309,7 +321,6 @@ const AdminDashboard = () => {
                   Thêm Tour Mới
                 </Button>
               </div>
-
               {loading ? (
                 <div className="text-center">
                   <div className="spinner-border" role="status">
@@ -361,10 +372,8 @@ const AdminDashboard = () => {
                 </Table>
               )}
             </Tab>
-
             <Tab eventKey="bookings" title="Quản lý Đặt Tour">
               <h4 className="mb-3">Danh sách Đặt Tour</h4>
-
               {loading ? (
                 <div className="text-center">
                   <div className="spinner-border" role="status">
@@ -431,10 +440,8 @@ const AdminDashboard = () => {
                 </Table>
               )}
             </Tab>
-
             <Tab eventKey="reviews" title="Quản lý Đánh giá">
               <h4 className="mb-3">Danh sách Đánh giá</h4>
-
               {loading ? (
                 <div className="text-center">
                   <div className="spinner-border" role="status">
@@ -525,7 +532,6 @@ const AdminDashboard = () => {
                 </Form.Group>
               </Col>
             </Row>
-
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -550,7 +556,6 @@ const AdminDashboard = () => {
                 </Form.Group>
               </Col>
             </Row>
-
             <Form.Group className="mb-3">
               <Form.Label>Lịch trình</Form.Label>
               <Form.Control
@@ -561,7 +566,6 @@ const AdminDashboard = () => {
                 required
               />
             </Form.Group>
-
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -586,7 +590,6 @@ const AdminDashboard = () => {
                 </Form.Group>
               </Col>
             </Row>
-
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -596,6 +599,7 @@ const AdminDashboard = () => {
                     value={tourData.price}
                     onChange={(e) => setTourData({ ...tourData, price: e.target.value })}
                     required
+                    min="0"
                   />
                 </Form.Group>
               </Col>
@@ -607,11 +611,11 @@ const AdminDashboard = () => {
                     value={tourData.availableSlots}
                     onChange={(e) => setTourData({ ...tourData, availableSlots: e.target.value })}
                     required
+                    min="0"
                   />
                 </Form.Group>
               </Col>
             </Row>
-
             <Form.Group className="mb-3">
               <Form.Label>Dịch vụ (mỗi dịch vụ một dòng)</Form.Label>
               <Form.Control
@@ -624,9 +628,104 @@ const AdminDashboard = () => {
                     services: e.target.value.split("\n").filter((s) => s.trim() !== ""),
                   })
                 }
-                placeholder="Ví dụ:&#10;Khách sạn 4 sao&#10;Ăn 3 bữa/ngày&#10;Hướng dẫn viên"
+                placeholder="Ví dụ:
+Khách sạn 4 sao
+Ăn 3 bữa/ngày
+Hướng dẫn viên"
               />
             </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Hình ảnh (tối đa 5 ảnh, định dạng .jpg, .jpeg, .png, tối đa 5MB mỗi ảnh)</Form.Label>
+              <Form.Control
+                type="file"
+                multiple
+                accept="image/jpeg,image/jpg,image/png"
+                onChange={(e) => {
+                  const maxImages = 5 - (editingTour ? editingTour.images.length - tourData.imagesToRemove.length : 0)
+                  const newImages = Array.from(e.target.files).slice(0, maxImages)
+                  if (newImages.length !== e.target.files.length) {
+                    setAlert({
+                      show: true,
+                      message: `Bạn chỉ có thể thêm tối đa ${maxImages} ảnh mới`,
+                      variant: "warning",
+                    })
+                  }
+                  setTourData({ ...tourData, images: newImages })
+                }}
+              />
+              <Form.Text className="text-muted">
+                {editingTour
+                  ? `Còn ${5 - (editingTour.images.length - tourData.imagesToRemove.length)} slot ảnh`
+                  : "Chọn tối đa 5 ảnh (mỗi ảnh tối đa 5MB)"}
+              </Form.Text>
+            </Form.Group>
+            {tourData.images.length > 0 && (
+              <Form.Group className="mb-3">
+                <Form.Label>Hình ảnh mới chọn</Form.Label>
+                <Row>
+                  {tourData.images.map((image, index) => (
+                    <Col md={4} key={index} className="mb-2">
+                      <div className="position-relative">
+                        <Image
+                          src={URL.createObjectURL(image)}
+                          alt={`New image ${index + 1}`}
+                          thumbnail
+                          style={{ maxHeight: "100px", objectFit: "cover" }}
+                        />
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          className="position-absolute top-0 end-0"
+                          onClick={() =>
+                            setTourData({
+                              ...tourData,
+                              images: tourData.images.filter((_, i) => i !== index)
+                            })
+                          }
+                        >
+                          X
+                        </Button>
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+              </Form.Group>
+            )}
+            {editingTour && editingTour.images && editingTour.images.length > 0 && (
+              <Form.Group className="mb-3">
+                <Form.Label>Hình ảnh hiện tại</Form.Label>
+                <Row>
+                  {editingTour.images
+                    .filter((image) => !tourData.imagesToRemove.includes(image))
+                    .map((image, index) => (
+                      <Col md={4} key={index} className="mb-2">
+                        <div className="position-relative">
+                          <Image
+                            src={`${process.env.REACT_APP_API_URL || "http://localhost:5000"}${image}`}
+                            alt={`Tour image ${index + 1}`}
+                            thumbnail
+                            style={{ maxHeight: "100px", objectFit: "cover" }}
+                          />
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            className="position-absolute top-0 end-0"
+                            onClick={() =>
+                              setTourData({
+                                ...tourData,
+                                imagesToRemove: [...tourData.imagesToRemove, image]
+                              })
+                            }
+                            disabled={tourData.imagesToRemove.includes(image)}
+                          >
+                            X
+                          </Button>
+                        </div>
+                      </Col>
+                    ))}
+                </Row>
+              </Form.Group>
+            )}
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowTourModal(false)}>
