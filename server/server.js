@@ -2,6 +2,7 @@ const express = require("express")
 const cors = require("cors")
 const dotenv = require("dotenv")
 const connectDB = require("./config/database")
+const path = require("path")
 
 // Load environment variables
 dotenv.config()
@@ -15,6 +16,9 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+// Serve static files from public folder
+app.use(express.static(path.join(__dirname, "../../TourManagement/client/public/uploads")))
 
 // Routes
 app.use("/api/auth", require("./routes/auth"))
