@@ -1,6 +1,6 @@
 const express = require("express")
 const Tour = require("../models/Tour")
-const { auth, adminAuth } = require("../middleware/auth")
+const { employeeAuth } = require("../middleware/auth")
 
 const router = express.Router()
 
@@ -9,16 +9,151 @@ const generateTourId = () => {
   return "TOUR" + Date.now() + Math.floor(Math.random() * 1000)
 }
 
+// Get tour categories and destinations from database
+router.get("/categories", async (req, res) => {
+  try {
+    // Get categories with counts
+    const categoryStats = await Tour.aggregate([
+      { $match: { status: "active" } },
+      {
+        $group: {
+          _id: "$category",
+          count: { $sum: 1 },
+          destinations: { $addToSet: "$destination" },
+          countries: { $addToSet: "$country" },
+        },
+      },
+    ])
+
+    // Get regions with counts
+    const regionStats = await Tour.aggregate([
+      { $match: { status: "active" } },
+      {
+        $group: {
+          _id: { category: "$category", region: "$region" },
+          count: { $sum: 1 },
+          destinations: { $addToSet: "$destination" },
+        },
+      },
+    ])
+
+    // Get all unique destinations and countries
+    const destinations = await Tour.distinct("destination", { status: "active" })
+    const countries = await Tour.distinct("country", { status: "active" })
+    const departures = await Tour.distinct("departure", { status: "active" })
+
+    // Total tours
+    const totalTours = await Tour.countDocuments({ status: "active" })
+
+    // Format response
+    const categories = {
+      all: { name: "Tất cả Tours", count: totalTours },
+    }
+
+    const regions = {
+      domestic: {
+        "mien-bac": { name: "Miền Bắc", count: 0, destinations: [] },
+        "mien-trung": { name: "Miền Trung", count: 0, destinations: [] },
+        "mien-nam": { name: "Miền Nam", count: 0, destinations: [] },
+      },
+      international: {
+        "dong-nam-a": { name: "Đông Nam Á", count: 0, destinations: [] },
+        "dong-a": { name: "Đông Á", count: 0, destinations: [] },
+        "chau-au": { name: "Châu Âu", count: 0, destinations: [] },
+        "chau-my": { name: "Châu Mỹ", count: 0, destinations: [] },
+        "chau-uc": { name: "Châu Úc", count: 0, destinations: [] },
+        "chau-phi": { name: "Châu Phi", count: 0, destinations: [] },
+        other: { name: "Khác", count: 0, destinations: [] },
+      },
+    }
+
+    // Process category stats
+    categoryStats.forEach((cat) => {
+      categories[cat._id] = {
+        name: cat._id === "domestic" ? "Tour Trong Nước" : "Tour Nước Ngoài",
+        count: cat.count,
+        destinations: cat.destinations,
+        countries: cat.countries,
+      }
+    })
+
+    // Process region stats
+    regionStats.forEach((region) => {
+      const { category, region: regionKey } = region._id
+      if (regions[category] && regions[category][regionKey]) {
+        regions[category][regionKey].count = region.count
+        regions[category][regionKey].destinations = region.destinations
+      }
+    })
+
+    res.json({
+      categories,
+      regions,
+      destinations,
+      countries,
+      departures,
+    })
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message })
+  }
+})
+
 // Get all tours (public)
 router.get("/", async (req, res) => {
   try {
-    const { destination, startDate, endDate, minPrice, maxPrice, page = 1, limit = 10 } = req.query
+    const {
+      destination,
+      departure,
+      country,
+      category,
+      region,
+      tourType,
+      difficulty,
+      startDate,
+      endDate,
+      minPrice,
+      maxPrice,
+      minDuration,
+      maxDuration,
+      featured,
+      sort = "newest",
+      page = 1,
+      limit = 12,
+    } = req.query
 
     const query = { status: "active" }
 
-    // Add filters
+    // Add filters based on new model structure
     if (destination) {
       query.destination = { $regex: destination, $options: "i" }
+    }
+
+    if (departure) {
+      query.departure = { $regex: departure, $options: "i" }
+    }
+
+    if (country) {
+      query.country = { $regex: country, $options: "i" }
+    }
+
+    if (category) {
+      query.category = category
+    }
+
+    if (region) {
+      query.region = region
+    }
+
+    if (tourType) {
+      query.tourType = tourType
+    }
+
+    if (difficulty) {
+      query.difficulty = difficulty
+    }
+
+    if (featured === "true") {
+      query.featured = true
     }
 
     if (startDate && endDate) {
@@ -31,17 +166,57 @@ router.get("/", async (req, res) => {
       if (maxPrice) query.price.$lte = Number(maxPrice)
     }
 
+    if (minDuration || maxDuration) {
+      query.duration = {}
+      if (minDuration) query.duration.$gte = Number(minDuration)
+      if (maxDuration) query.duration.$lte = Number(maxDuration)
+    }
+
+    // Sorting
+    let sortOption = { createdAt: -1 } // default: newest
+    switch (sort) {
+      case "oldest":
+        sortOption = { createdAt: 1 }
+        break
+      case "price-low":
+        sortOption = { price: 1 }
+        break
+      case "price-high":
+        sortOption = { price: -1 }
+        break
+      case "popular":
+        sortOption = { reviewCount: -1, rating: -1 }
+        break
+      case "rating":
+        sortOption = { rating: -1, reviewCount: -1 }
+        break
+      case "duration-short":
+        sortOption = { duration: 1 }
+        break
+      case "duration-long":
+        sortOption = { duration: -1 }
+        break
+      case "name-asc":
+        sortOption = { tourName: 1 }
+        break
+      case "name-desc":
+        sortOption = { tourName: -1 }
+        break
+      default:
+        sortOption = { featured: -1, createdAt: -1 }
+    }
+
     const tours = await Tour.find(query)
       .limit(limit * 1)
       .skip((page - 1) * limit)
-      .sort({ createdAt: -1 })
+      .sort(sortOption)
 
     const total = await Tour.countDocuments(query)
 
     res.json({
       tours,
       totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      currentPage: Number(page),
       total,
     })
   } catch (error) {
@@ -63,7 +238,7 @@ router.get("/:id", async (req, res) => {
 })
 
 // Create tour (Admin only)
-router.post("/", adminAuth, async (req, res) => {
+router.post("/", employeeAuth, async (req, res) => {
   try {
     const tourData = {
       ...req.body,
@@ -80,7 +255,7 @@ router.post("/", adminAuth, async (req, res) => {
 })
 
 // Update tour (Admin only)
-router.put("/:id", adminAuth, async (req, res) => {
+router.put("/:id", employeeAuth, async (req, res) => {
   try {
     const tour = await Tour.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
 
@@ -95,7 +270,7 @@ router.put("/:id", adminAuth, async (req, res) => {
 })
 
 // Delete tour (Admin only)
-router.delete("/:id", adminAuth, async (req, res) => {
+router.delete("/:id", employeeAuth, async (req, res) => {
   try {
     const tour = await Tour.findByIdAndDelete(req.params.id)
     if (!tour) {

@@ -1,20 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Container, Row, Col, Card, Button, Modal, Form, Alert, Badge } from "react-bootstrap"
+import { Container, Row, Col, Card, Button, Alert, Badge } from "react-bootstrap"
+import { useNavigate } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
 import api from "../services/api"
 
 const BookingHistory = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showReviewModal, setShowReviewModal] = useState(false)
-  const [selectedBooking, setSelectedBooking] = useState(null)
-  const [reviewData, setReviewData] = useState({
-    rating: 5,
-    comment: "",
-  })
   const [alert, setAlert] = useState({ show: false, message: "", variant: "" })
 
   useEffect(() => {
@@ -37,36 +33,8 @@ const BookingHistory = () => {
     }
   }
 
-  const handleReview = (booking) => {
-    setSelectedBooking(booking)
-    setShowReviewModal(true)
-  }
-
-  const submitReview = async (e) => {
-    e.preventDefault()
-
-    try {
-      await api.post("/reviews", {
-        tourId: selectedBooking.tourId._id,
-        rating: reviewData.rating,
-        comment: reviewData.comment,
-      })
-
-      setAlert({
-        show: true,
-        message: "Đánh giá của bạn đã được gửi và đang chờ duyệt",
-        variant: "success",
-      })
-
-      setShowReviewModal(false)
-      setReviewData({ rating: 5, comment: "" })
-    } catch (error) {
-      setAlert({
-        show: true,
-        message: error.response?.data?.message || "Có lỗi xảy ra khi gửi đánh giá",
-        variant: "danger",
-      })
-    }
+  const handleViewTour = (tourId) => {
+    navigate(`/tours/${tourId}`)
   }
 
   const formatPrice = (price) => {
@@ -144,11 +112,20 @@ const BookingHistory = () => {
                         </p>
                       )}
 
-                      {booking.status === "paid" && (
-                        <Button variant="outline-primary" size="sm" onClick={() => handleReview(booking)}>
-                          Đánh giá tour
+                      <div className="d-flex gap-2">
+                        <Button variant="outline-primary" size="sm" onClick={() => handleViewTour(booking.tourId?._id)}>
+                          Xem chi tiết tour
                         </Button>
-                      )}
+                        {booking.status === "paid" && (
+                          <Button
+                            variant="outline-success"
+                            size="sm"
+                            onClick={() => handleViewTour(booking.tourId?._id)}
+                          >
+                            Đánh giá tour
+                          </Button>
+                        )}
+                      </div>
                     </Card.Body>
                   </Card>
                 </Col>
@@ -166,62 +143,6 @@ const BookingHistory = () => {
           )}
         </Col>
       </Row>
-
-      {/* Review Modal */}
-      <Modal show={showReviewModal} onHide={() => setShowReviewModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Đánh giá tour</Modal.Title>
-        </Modal.Header>
-        <Form onSubmit={submitReview}>
-          <Modal.Body>
-            <h6>{selectedBooking?.tourId?.tourName}</h6>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Đánh giá (1-5 sao)</Form.Label>
-              <Form.Select
-                value={reviewData.rating}
-                onChange={(e) =>
-                  setReviewData({
-                    ...reviewData,
-                    rating: Number.parseInt(e.target.value),
-                  })
-                }
-              >
-                <option value={5}>5 sao - Tuyệt vời</option>
-                <option value={4}>4 sao - Tốt</option>
-                <option value={3}>3 sao - Bình thường</option>
-                <option value={2}>2 sao - Kém</option>
-                <option value={1}>1 sao - Rất kém</option>
-              </Form.Select>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Nhận xét</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={4}
-                value={reviewData.comment}
-                onChange={(e) =>
-                  setReviewData({
-                    ...reviewData,
-                    comment: e.target.value,
-                  })
-                }
-                placeholder="Chia sẻ trải nghiệm của bạn về tour này..."
-                required
-              />
-            </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowReviewModal(false)}>
-              Hủy
-            </Button>
-            <Button variant="primary" type="submit">
-              Gửi đánh giá
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
     </Container>
   )
 }

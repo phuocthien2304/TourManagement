@@ -37,44 +37,83 @@ const Home = () => {
       <Carousel className="mb-5">
         <Carousel.Item>
           <div
-            className="d-block w-100"
+            className="d-block w-100 position-relative"
             style={{
               height: "400px",
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              backgroundImage: "url('../home/main-background.jpg')",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
             }}
           >
-            <div className="text-center text-white">
+            {/* Overlay */}
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                backgroundColor: "rgba(0, 0, 0, 0.4)",
+                zIndex: 1,
+                pointerEvents: "none",
+              }}
+            ></div>
+
+            {/* Content */}
+            <div
+              className="text-center text-white position-relative"
+              style={{
+                zIndex: 2,
+                textShadow: "2px 2px 8px rgba(0,0,0,0.8)",
+                padding: "20px",
+              }}
+            >
               <h1 className="display-4 fw-bold mb-3">Khám phá thế giới cùng chúng tôi</h1>
               <p className="lead mb-4">Những chuyến du lịch tuyệt vời đang chờ đón bạn</p>
               <Link to="/tours">
-                <Button variant="light" size="lg">
-                  Xem Tours
-                </Button>
+                <Button variant="light" size="lg">Xem Tours</Button>
               </Link>
             </div>
           </div>
         </Carousel.Item>
+
         <Carousel.Item>
           <div
-            className="d-block w-100"
+            className="d-block w-100 position-relative"
             style={{
               height: "400px",
-              background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              backgroundImage: "url('../home/phuquoc-background.jpg')",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
             }}
           >
-            <div className="text-center text-white">
+            {/* Overlay */}
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                backgroundColor: "rgba(0, 0, 0, 0.4)",
+                zIndex: 1,
+                pointerEvents: "none",
+              }}
+            ></div>
+
+            {/* Content */}
+            <div
+              className="text-center text-white position-relative"
+              style={{
+                zIndex: 2,
+                textShadow: "2px 2px 8px rgba(0,0,0,0.8)",
+                padding: "20px",
+              }}
+            >
               <h1 className="display-4 fw-bold mb-3">Trải nghiệm độc đáo</h1>
               <p className="lead mb-4">Tạo nên những kỷ niệm không thể quên</p>
               <Link to="/tours">
-                <Button variant="light" size="lg">
-                  Đặt Tour Ngay
-                </Button>
+                <Button variant="light" size="lg">Đặt Tour Ngay</Button>
               </Link>
             </div>
           </div>

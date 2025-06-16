@@ -27,6 +27,19 @@ const reviewSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    images: [
+      {
+        type: String, // URL của ảnh
+      },
+    ],
+    reviewerName: {
+      type: String,
+      required: true,
+    },
+    reviewerPhone: {
+      type: String,
+      required: true,
+    },
     reviewDate: {
       type: Date,
       default: Date.now,

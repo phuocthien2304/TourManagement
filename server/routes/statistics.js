@@ -1,31 +1,31 @@
-const express = require("express")
-const Booking = require("../models/Booking")
-const Tour = require("../models/Tour")
-const Review = require("../models/Review")
-const { adminAuth } = require("../middleware/auth")
+const express = require("express");
+const Booking = require("../models/Booking");
+const Tour = require("../models/Tour");
+const Review = require("../models/Review");
+const { employeeAuth } = require("../middleware/auth");  // ✅ Sửa đúng middleware
 
-const router = express.Router()
+const router = express.Router();
 
 // Get booking statistics
-router.get("/bookings", adminAuth, async (req, res) => {
+router.get("/bookings", employeeAuth, async (req, res) => {
   try {
-    const { startDate, endDate } = req.query
+    const { startDate, endDate } = req.query;
 
-    let dateFilter = {}
+    let dateFilter = {};
     if (startDate && endDate) {
       dateFilter = {
         createdAt: {
           $gte: new Date(startDate),
           $lte: new Date(endDate),
         },
-      }
+      };
     }
 
     // Total bookings
     const totalBookings = await Booking.countDocuments({
       ...dateFilter,
       status: { $in: ["confirmed", "paid"] },
-    })
+    });
 
     // Total revenue
     const revenueResult = await Booking.aggregate([
@@ -41,9 +41,9 @@ router.get("/bookings", adminAuth, async (req, res) => {
           totalRevenue: { $sum: "$totalAmount" },
         },
       },
-    ])
+    ]);
 
-    const totalRevenue = revenueResult[0]?.totalRevenue || 0
+    const totalRevenue = revenueResult[0]?.totalRevenue || 0;
 
     // Bookings by month
     const bookingsByMonth = await Booking.aggregate([
@@ -66,20 +66,20 @@ router.get("/bookings", adminAuth, async (req, res) => {
       {
         $sort: { "_id.year": 1, "_id.month": 1 },
       },
-    ])
+    ]);
 
     res.json({
       totalBookings,
       totalRevenue,
       bookingsByMonth,
-    })
+    });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message })
+    res.status(500).json({ message: "Server error", error: error.message });
   }
-})
+});
 
 // Get tour statistics
-router.get("/tours", adminAuth, async (req, res) => {
+router.get("/tours", employeeAuth, async (req, res) => {
   try {
     // Most popular tours
     const popularTours = await Booking.aggregate([
@@ -112,7 +112,7 @@ router.get("/tours", adminAuth, async (req, res) => {
       {
         $limit: 10,
       },
-    ])
+    ]);
 
     // Revenue by tour
     const revenueByTour = await Booking.aggregate([
@@ -142,23 +142,23 @@ router.get("/tours", adminAuth, async (req, res) => {
       {
         $sort: { revenue: -1 },
       },
-    ])
+    ]);
 
     res.json({
       popularTours,
       revenueByTour,
-    })
+    });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message })
+    res.status(500).json({ message: "Server error", error: error.message });
   }
-})
+});
 
 // Get review statistics
-router.get("/reviews", adminAuth, async (req, res) => {
+router.get("/reviews", employeeAuth, async (req, res) => {
   try {
-    const totalReviews = await Review.countDocuments()
-    const pendingReviews = await Review.countDocuments({ status: "pending" })
-    const approvedReviews = await Review.countDocuments({ status: "approved" })
+    const totalReviews = await Review.countDocuments();
+    const pendingReviews = await Review.countDocuments({ status: "pending" });
+    const approvedReviews = await Review.countDocuments({ status: "approved" });
 
     // Average rating by tour
     const ratingsByTour = await Review.aggregate([
@@ -186,17 +186,17 @@ router.get("/reviews", adminAuth, async (req, res) => {
       {
         $sort: { averageRating: -1 },
       },
-    ])
+    ]);
 
     res.json({
       totalReviews,
       pendingReviews,
       approvedReviews,
       ratingsByTour,
-    })
+    });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message })
+    res.status(500).json({ message: "Server error", error: error.message });
   }
-})
+});
 
-module.exports = router
+module.exports = router;

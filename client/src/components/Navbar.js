@@ -34,9 +34,6 @@ const NavigationBar = () => {
           <Nav>
             {user ? (
               <>
-                <Nav.Link as={Link} to="/dashboard">
-                  Dashboard
-                </Nav.Link>
                 {user.role === "admin" && (
                   <Nav.Link as={Link} to="/admin">
                     Quản trị
@@ -45,7 +42,7 @@ const NavigationBar = () => {
                 <Nav.Link as={Link} to="/bookings">
                   Lịch sử đặt tour
                 </Nav.Link>
-                <Nav.Link>Xin chào, {user.fullName}</Nav.Link>
+                <Nav.Link as={Link} to="/dashboard">Xin chào, {user.fullName}</Nav.Link>
                 <Button variant="outline-light" size="sm" onClick={handleLogout}>
                   Đăng xuất
                 </Button>
