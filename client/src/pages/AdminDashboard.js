@@ -615,20 +615,19 @@ const AdminDashboard = () => {
             <Form.Group className="mb-3">
               <Form.Label>Dịch vụ (mỗi dịch vụ một dòng)</Form.Label>
               <Form.Control
-                as="textarea"
-                rows={3}
-                value={tourData.services.join("\n")}
-                onChange={(e) =>
-                  setTourData({
-                    ...tourData,
-                    services: e.target.value.split("\n").filter((s) => s.trim() !== ""),
-                  })
-                }
-                placeholder="Ví dụ:
-Khách sạn 4 sao
-Ăn 3 bữa/ngày
-Hướng dẫn viên"
-              />
+                  as="textarea"
+                  rows={3}
+                  value={tourData.servicesText}
+                  onChange={(e) => {
+                    setTourData({
+                      ...tourData,
+                      servicesText: e.target.value,
+                      services: e.target.value.split("\n"), // hoặc filter sau
+                    });
+                  }}
+                  placeholder={`Ví dụ:\nKhách sạn 4 sao\nĂn 3 bữa/ngày\nHướng dẫn viên`}
+                />
+
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Hình ảnh (tối đa 5 ảnh, định dạng .jpg, .jpeg, .png, tối đa 5MB mỗi ảnh)</Form.Label>
