@@ -66,7 +66,7 @@ const Home = () => {
                 zIndex: 2,
                 textShadow: "2px 2px 8px rgba(0,0,0,0.8)",
                 padding: "20px",
-                top:"100px",
+                top: "100px",
               }}
             >
               <h1 className="display-4 fw-bold mb-3">Khám phá thế giới cùng chúng tôi</h1>
@@ -109,7 +109,7 @@ const Home = () => {
                 zIndex: 2,
                 textShadow: "2px 2px 8px rgba(0,0,0,0.8)",
                 padding: "20px",
-                top:"100px",
+                top: "100px",
               }}
             >
               <h1 className="display-4 fw-bold mb-3">Trải nghiệm độc đáo</h1>
@@ -198,6 +198,94 @@ const Home = () => {
           </Col>
         </Row>
       </Container>
+
+      {/* --- Footer Section --- */}
+      <footer className="bg-dark text-white pt-5 pb-4">
+        <Container>
+          <Row>
+            {/* About Us */}
+            <Col lg={3} md={6} className="mb-4 mb-lg-0">
+              <h5 className="text-uppercase fw-bold mb-4">Về chúng tôi</h5>
+              <p className="text-white-50">
+                Chúng tôi cam kết mang đến những chuyến đi đáng nhớ và trải nghiệm du lịch tuyệt vời nhất cho bạn. Khám phá thế giới cùng chúng tôi!
+              </p>
+            </Col>
+
+            {/* Quick Links */}
+            <Col lg={3} md={6} className="mb-4 mb-lg-0">
+              <h5 className="text-uppercase fw-bold mb-4">Liên kết nhanh</h5>
+              <ul className="list-unstyled">
+                <li className="mb-2">
+                  <Link to="/" className="text-white-50 text-decoration-none">
+                    Trang chủ
+                  </Link>
+                </li>
+                <li className="mb-2">
+                  <Link to="/tours" className="text-white-50 text-decoration-none">
+                    Tours
+                  </Link>
+                </li>
+                <li className="mb-2">
+                  <Link to="/about" className="text-white-50 text-decoration-none">
+                    Về chúng tôi
+                  </Link>
+                </li>
+                <li className="mb-2">
+                  <Link to="/contact" className="text-white-50 text-decoration-none">
+                    Liên hệ
+                  </Link>
+                </li>
+              </ul>
+            </Col>
+
+            {/* Contact Info */}
+            <Col lg={3} md={6} className="mb-4 mb-md-0">
+              <h5 className="text-uppercase fw-bold mb-4">Liên hệ</h5>
+              <ul className="list-unstyled text-white-50">
+                <li className="mb-2">
+                  <i className="bi bi-house-door-fill me-2"></i> 123 Đường ABC, Quận XYZ, TP.HCM
+                </li>
+                <li className="mb-2">
+                  <i className="bi bi-envelope-fill me-2"></i> info@yourtravelsite.com
+                </li>
+                <li className="mb-2">
+                  <i className="bi bi-phone-fill me-2"></i> +84 123 456 789
+                </li>
+                <li className="mb-2">
+                  <i className="bi bi-printer-fill me-2"></i> +84 987 654 321
+                </li>
+              </ul>
+            </Col>
+
+            {/* Social Media */}
+            <Col lg={3} md={6}>
+              <h5 className="text-uppercase fw-bold mb-4">Theo dõi chúng tôi</h5>
+              <div>
+                <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="text-white me-3">
+                  <i className="bi bi-facebook" style={{ fontSize: "1.8rem" }}></i>
+                </a>
+                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="text-white me-3">
+                  <i className="bi bi-twitter" style={{ fontSize: "1.8rem" }}></i>
+                </a>
+                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-white me-3">
+                  <i className="bi bi-instagram" style={{ fontSize: "1.8rem" }}></i>
+                </a>
+                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="text-white">
+                  <i className="bi bi-linkedin" style={{ fontSize: "1.8rem" }}></i>
+                </a>
+              </div>
+            </Col>
+          </Row>
+          <hr className="my-4 border-secondary" />
+          <Row>
+            <Col className="text-center text-white-50">
+              <p className="mb-0">
+                &copy; {new Date().getFullYear()} Your Travel Site. All Rights Reserved.
+              </p>
+            </Col>
+          </Row>
+        </Container>
+      </footer>
     </div>
   )
 }

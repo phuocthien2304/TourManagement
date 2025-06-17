@@ -17,7 +17,7 @@ const NavigationBar = () => {
     <Navbar bg="primary" variant="dark" expand="lg" className="mb-4 fixed-top">
       <Container>
         <Navbar.Brand as={Link} to="/">
-          Tour Management
+          TVMTravel
         </Navbar.Brand>
 
         <Navbar.Toggle aria-controls="basic-navbar-nav" />

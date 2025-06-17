@@ -135,7 +135,7 @@ const Tours = () => {
       <Row>
         {/* Sidebar */}
         <Col lg={3} className="bg-light p-4">
-          <div className="sticky-top" style={{ top: "20px" }}>
+          <div className="sticky-top" style={{ top: "82px" }}>
             <h4 className="mb-4">
               <i className="bi bi-funnel me-2"></i>
               Danh mục Tours
