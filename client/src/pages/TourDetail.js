@@ -2,10 +2,82 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { Container, Row, Col, Card, Button, Form, Alert, Badge, Carousel, Modal } from "react-bootstrap"
+import {
+  Container, Row, Col, Card, Button, Form, Alert,
+  Badge, Carousel, Modal
+} from "react-bootstrap"
 import { useAuth } from "../contexts/AuthContext"
+import { CreditCard, Check, Copy, X } from "lucide-react"
 import api from "../services/api"
 
+function PaymentModal({ isOpen, onClose, paymentInfo }) {
+  const [copied, setCopied] = useState({ accountNumber: false, amount: false, content: false, all: false })
+
+  const copyToClipboard = async (text, field) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(prev => ({ ...prev, [field]: true }))
+      setTimeout(() => setCopied(prev => ({ ...prev, [field]: false })), 2000)
+    } catch (err) { console.error("Failed to copy: ", err) }
+  }
+
+  const copyAllToClipboard = async () => {
+    const allText = `Ngân hàng: MBBank\nChủ tài khoản: NGUYEN PHUOC THIEN\nSố tài khoản: 6923042004\nSố tiền: ${paymentInfo.amount}\nNội dung: ${paymentInfo.content}`
+    try {
+      await navigator.clipboard.writeText(allText)
+      setCopied(prev => ({ ...prev, all: true }))
+      setTimeout(() => setCopied(prev => ({ ...prev, all: false })), 2000)
+    } catch (err) { console.error("Failed to copy: ", err) }
+  }
+
+  return (
+    <Modal show={isOpen} onHide={onClose} centered size="md" scrollable>
+      <Modal.Header className="d-flex align-items-center">
+        <div className="d-flex align-items-center gap-2">
+          <CreditCard className="text-primary" size={24} />
+          <Modal.Title>Thông tin thanh toán</Modal.Title>
+        </div>
+        <Button variant="link" className="p-0" onClick={onClose}><X size={20} /></Button>
+      </Modal.Header>
+      <Modal.Body>
+        <Alert variant="primary" className="text-center">
+          <p className="mb-1 fw-medium">Vui lòng chuyển khoản theo thông tin dưới đây</p>
+          <p className="mb-0 small">Sau khi chuyển khoản, tour sẽ được xác nhận trong 15 phút</p>
+        </Alert>
+        <div className="d-flex flex-column gap-3">
+          <Card className="p-3"><p className="text-muted small mb-1">Ngân hàng</p><p className="fw-bold text-primary fs-5 mb-0">MBBank</p></Card>
+          <Card className="p-3"><p className="text-muted small mb-1">Chủ tài khoản</p><p className="fw-bold fs-5 mb-0">NGUYEN PHUOC THIEN</p></Card>
+          <Card className="p-3">
+            <div className="d-flex justify-content-between align-items-center mb-1">
+              <p className="text-muted small mb-0">Số tài khoản</p>
+              <Button variant="link" className="d-flex align-items-center gap-1 p-0 text-decoration-none text-primary small fw-medium" onClick={() => copyToClipboard("6923042004", "accountNumber")}>{copied.accountNumber ? (<><Check size={16} /> Đã sao chép</>) : (<><Copy size={16} /> Sao chép</>)}</Button>
+            </div>
+            <p className="fw-bold fs-5 font-monospace mb-0">6923042004</p>
+          </Card>
+          <Card className="p-3 border-danger-subtle bg-danger-subtle">
+            <div className="d-flex justify-content-between align-items-center mb-1">
+              <p className="text-danger small fw-medium mb-0">Số tiền cần chuyển</p>
+              <Button variant="link" className="d-flex align-items-center gap-1 p-0 text-decoration-none text-danger small fw-medium" onClick={() => copyToClipboard(paymentInfo.amount.replace(/[^\d]/g, ""), "amount")}>{copied.amount ? (<><Check size={16} /> Đã sao chép</>) : (<><Copy size={16} /> Sao chép</>)}</Button>
+            </div>
+            <p className="fw-bold fs-4 text-danger mb-0">{paymentInfo.amount}</p>
+          </Card>
+          <Card className="p-3 border-warning-subtle bg-warning-subtle">
+            <div className="d-flex justify-content-between align-items-center mb-1">
+              <p className="text-warning small fw-medium mb-0">Nội dung chuyển khoản</p>
+              <Button variant="link" className="d-flex align-items-center gap-1 p-0 text-decoration-none text-warning small fw-medium" onClick={() => copyToClipboard(paymentInfo.content, "content")}>{copied.content ? (<><Check size={16} /> Đã sao chép</>) : (<><Copy size={16} /> Sao chép</>)}</Button>
+            </div>
+            <p className="fw-bold fs-5 mb-0 text-break">{paymentInfo.content}</p>
+          </Card>
+        </div>
+        <Button variant="primary" className="w-100 mt-4 d-flex align-items-center justify-content-center gap-2" onClick={copyAllToClipboard}>{copied.all ? (<><Check size={20} /> Đã sao chép tất cả</>) : (<><Copy size={20} /> Sao chép tất cả thông tin</>)}</Button>
+        <Card className="mt-3 p-3 text-center">
+          <p className="text-muted small mb-1">💡 <strong>Lưu ý:</strong> Vui lòng chuyển khoản đúng số tiền và nội dung để được xử lý nhanh chóng</p>
+          <p className="text-muted small mb-0">📞 Hotline hỗ trợ: <span className="fw-medium">1900-1234</span></p>
+        </Card>
+      </Modal.Body>
+    </Modal>
+  )
+}
 const TourDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -15,10 +87,14 @@ const TourDetail = () => {
   const [canReview, setCanReview] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showReviewModal, setShowReviewModal] = useState(false)
+  const [showPayment, setShowPayment] = useState(false)
+  
   const [bookingData, setBookingData] = useState({
     numberOfPeople: 1,
     notes: "",
   })
+  const [paymentInfo, setPaymentInfo] = useState({ amount: "", content: "" })
+
   const [reviewData, setReviewData] = useState({
     rating: 5,
     comment: "",
@@ -109,6 +185,13 @@ const TourDetail = () => {
 
       // Reset form
       setBookingData({ numberOfPeople: 1, notes: "" })
+      const accuratePaymentInfo = {
+  amount: formatPrice(tour.price * bookingData.numberOfPeople),
+  content: tour.tourName, 
+}
+setPaymentInfo(accuratePaymentInfo)
+setShowPayment(true)
+
     } catch (error) {
       setAlert({
         show: true,
@@ -185,13 +268,15 @@ const TourDetail = () => {
       })
     }
   }
-
   const formatPrice = (price) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: "VND",
     }).format(price)
   }
+  
+
+  
 
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString("vi-VN")
@@ -418,6 +503,9 @@ const TourDetail = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* Payment Modal */}
+      <PaymentModal isOpen={showPayment} onClose={() => setShowPayment(false)} paymentInfo={paymentInfo} />
 
       {/* Review Modal */}
       <Modal show={showReviewModal} onHide={() => setShowReviewModal(false)} size="lg">
