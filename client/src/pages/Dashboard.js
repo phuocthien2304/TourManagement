@@ -137,12 +137,12 @@ const Dashboard = () => {
               </p>
             </div>
           </Col>
-          <Col md={6}>
+          {/* <Col md={6}>
             <div className="mb-3">
               <strong>Ngày tham gia:</strong>
               <p className="mb-0">{formatDate(user?.createdAt)}</p>
             </div>
-          </Col>
+          </Col> */}
         </Row>
       </Card.Body>
     </Card>

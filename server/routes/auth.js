@@ -97,6 +97,8 @@ router.post("/login", async (req, res) => {
         userId: userType === "customer" ? user.customerId : user.employeeId,
         fullName: user.fullName,
         email: user.email,
+        address: user.address,
+        phoneNumber: user.phoneNumber,  
         role: user.role,
       },
     })
