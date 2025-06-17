@@ -245,10 +245,10 @@ const AdminDashboard = () => {
   }
 
   return (
-    <Container fluid>
+    <Container>
       <Row>
         <Col>
-          <h1 className="mb-4">Quản trị hệ thống</h1>
+          <h1 className="mb-4" style={{marginTop:"82px"}}>Quản trị hệ thống</h1>
           {alert.show && (
             <Alert variant={alert.variant} onClose={() => setAlert({ show: false })} dismissible>
               {alert.message}
@@ -265,45 +265,41 @@ const AdminDashboard = () => {
               ) : (
                 <Row>
                   <Col md={4}>
-                    <Card className="mb-4">
-                      <Card.Body>
-                        <h5>Thống kê đặt tour</h5>
-                        <p>
-                          <strong>Tổng đơn đặt:</strong> {statistics.bookings?.totalBookings || 0}
-                        </p>
-                        <p>
-                          <strong>Doanh thu:</strong> {formatPrice(statistics.bookings?.totalRevenue || 0)}
-                        </p>
-                      </Card.Body>
-                    </Card>
+                    <div className="h-100 d-flex flex-column">
+                      <Card className="mb-4 h-100">
+                        <Card.Body className="h-100 d-flex flex-column">
+                          <h5>Thống kê đặt tour</h5>
+                          <p><strong>Tổng đơn đặt:</strong> {statistics.bookings?.totalBookings || 0}</p>
+                          <p><strong>Doanh thu:</strong> {formatPrice(statistics.bookings?.totalRevenue || 0)}</p>
+                        </Card.Body>
+                      </Card>
+                    </div>
                   </Col>
                   <Col md={4}>
-                    <Card className="mb-4">
-                      <Card.Body>
-                        <h5>Thống kê đánh giá</h5>
-                        <p>
-                          <strong>Tổng đánh giá:</strong> {statistics.reviews?.totalReviews || 0}
-                        </p>
-                        <p>
-                          <strong>Chờ duyệt:</strong> {statistics.reviews?.pendingReviews || 0}
-                        </p>
-                        <p>
-                          <strong>Đã duyệt:</strong> {statistics.reviews?.approvedReviews || 0}
-                        </p>
-                      </Card.Body>
-                    </Card>
+                    <div className="h-100 d-flex flex-column">
+                      <Card className="mb-4 h-100">
+                        <Card.Body className="h-100 d-flex flex-column">
+                          <h5>Thống kê đánh giá</h5>
+                          <p><strong>Tổng đánh giá:</strong> {statistics.reviews?.totalReviews || 0}</p>
+                          <p><strong>Chờ duyệt:</strong> {statistics.reviews?.pendingReviews || 0}</p>
+                          <p><strong>Đã duyệt:</strong> {statistics.reviews?.approvedReviews || 0}</p>
+                        </Card.Body>
+                      </Card>
+                    </div>
                   </Col>
                   <Col md={4}>
-                    <Card className="mb-4">
-                      <Card.Body>
-                        <h5>Tours phổ biến</h5>
-                        {statistics.tours?.popularTours?.slice(0, 3).map((tour, index) => (
-                          <p key={index}>
-                            <strong>{index + 1}.</strong> {tour.tour.tourName} ({tour.bookingCount} lượt đặt)
-                          </p>
-                        ))}
-                      </Card.Body>
-                    </Card>
+                    <div className="h-100 d-flex flex-column">
+                      <Card className="mb-4 h-100">
+                        <Card.Body className="h-100 d-flex flex-column">
+                          <h5>Tours phổ biến</h5>
+                          {statistics.tours?.popularTours?.slice(0, 3).map((tour, index) => (
+                            <p key={index}>
+                              <strong>{index + 1}.</strong> {tour.tour.tourName} ({tour.bookingCount} lượt đặt)
+                            </p>
+                          ))}
+                        </Card.Body>
+                      </Card>
+                    </div>
                   </Col>
                 </Row>
               )}

@@ -39,7 +39,7 @@ const Home = () => {
           <div
             className="d-block w-100 position-relative"
             style={{
-              height: "400px",
+              height: "446px",
               backgroundImage: "url('../home/main-background.jpg')",
               backgroundSize: "cover",
               backgroundPosition: "center",
@@ -66,6 +66,7 @@ const Home = () => {
                 zIndex: 2,
                 textShadow: "2px 2px 8px rgba(0,0,0,0.8)",
                 padding: "20px",
+                top:"100px",
               }}
             >
               <h1 className="display-4 fw-bold mb-3">Khám phá thế giới cùng chúng tôi</h1>
@@ -81,7 +82,7 @@ const Home = () => {
           <div
             className="d-block w-100 position-relative"
             style={{
-              height: "400px",
+              height: "446px",
               backgroundImage: "url('../home/phuquoc-background.jpg')",
               backgroundSize: "cover",
               backgroundPosition: "center",
@@ -108,6 +109,7 @@ const Home = () => {
                 zIndex: 2,
                 textShadow: "2px 2px 8px rgba(0,0,0,0.8)",
                 padding: "20px",
+                top:"100px",
               }}
             >
               <h1 className="display-4 fw-bold mb-3">Trải nghiệm độc đáo</h1>
