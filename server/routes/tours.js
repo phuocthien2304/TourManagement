@@ -1,52 +1,8 @@
 const express = require("express")
 const Tour = require("../models/Tour")
-const { employeeAuth } = require("../middleware/auth")
-const multer = require("multer")
-const path = require("path")
-const fs = require("fs")
-
-
+const { auth, employeeAuth } = require("../middleware/auth")
+const upload = require("../middleware/upload");
 const router = express.Router()
-
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, "../../client/public/uploads")
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true })
-}
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, "../../client/public/uploads")
-    cb(null, uploadPath)
-  },
-  filename: (req, file, cb) => {
-    // Sanitize tourName to remove special characters
-    const tourName = req.body.tourName
-      ? req.body.tourName.replace(/[^a-zA-Z0-9]/g, "_")
-      : "tour"
-    // Add timestamp to avoid conflicts
-    const timestamp = Date.now()
-    // Calculate index based on number of files already processed
-    const index = req.files ? req.files.length + 1 : 1
-    const ext = path.extname(file.originalname).toLowerCase()
-    cb(null, `${tourName}_${timestamp}_${index}${ext}`)
-  }
-})
-
-const upload = multer({
-  storage,
-  fileFilter: (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png/
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase())
-    const mimetype = filetypes.test(file.mimetype)
-    if (mimetype && extname) {
-      return cb(null, true)
-    }
-    cb(new Error("Chỉ chấp nhận file .jpg, .jpeg, hoặc .png!"))
-  },
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
-}).array("images", 5) // Allow up to 5 images
 
 // Generate unique tour ID
 const generateTourId = () => {
@@ -167,6 +123,7 @@ router.get("/", async (req, res) => {
 
     const query = { status: "active" }
 
+    // Add filters based on new model structure
     if (destination) {
       query.destination = { $regex: destination, $options: "i" }
     }
@@ -263,7 +220,7 @@ router.get("/", async (req, res) => {
       total,
     })
   } catch (error) {
-    res.status(500).json({ message: "Lỗi server", error: error.message })
+    res.status(500).json({ message: "Server error", error: error.message })
   }
 })
 
@@ -272,120 +229,146 @@ router.get("/:id", async (req, res) => {
   try {
     const tour = await Tour.findById(req.params.id)
     if (!tour) {
-      return res.status(404).json({ message: "Không tìm thấy tour" })
+      return res.status(404).json({ message: "Tour not found" })
     }
     res.json(tour)
   } catch (error) {
-    res.status(500).json({ message: "Lỗi server", error: error.message })
+    res.status(500).json({ message: "Server error", error: error.message })
   }
 })
 
+// Helper function to calculate duration
+const calculateDuration = (startDate, endDate) => {
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  const diffTime = Math.abs(end - start)
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return diffDays
+}
+
 // Create tour (Admin only)
-router.post("/", employeeAuth, (req, res) => {
-  upload(req, res, async (err) => {
-    if (err) {
-      return res.status(400).json({ message: err.message })
-    }
-    try {
-      const images = req.files
-        ? req.files.map((file) => `/uploads/${file.filename}`)
-        : []
-
-      const tourData = {
-        ...req.body,
-        tourId: generateTourId(),
-        images,
-        price: Number.parseFloat(req.body.price),
-        availableSlots: Number.parseInt(req.body.availableSlots),
-        services: req.body.services ? req.body.services.filter((s) => s.trim() !== "") : []
-      }
-
-      const tour = new Tour(tourData)
-      await tour.save()
-
-      res.status(201).json(tour)
-    } catch (error) {
-      res.status(500).json({ message: "Lỗi server", error: error.message })
-    }
-  })
-})
-
-// Update tour (Admin only)
-router.put("/:id", employeeAuth, async (req, res) => {
+router.post("/", employeeAuth, upload.array("images", 5), async (req, res) => {
   try {
-    const tour = await Tour.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
-    if (!tour) {
-      return res.status(404).json({ message: "Không tìm thấy tour" })
+    const startDate = new Date(req.body.startDate)
+    const endDate = new Date(req.body.endDate)
+    const duration = calculateDuration(startDate, endDate)
+
+    const processArray = (data) => {
+      if (!data) return []
+      if (Array.isArray(data)) return data.filter((item) => item.trim() !== "")
+      return data.split("\n").filter((item) => item.trim() !== "")
     }
 
-    // Handle image updates
-    const imagesToRemove = req.body.imagesToRemove
-      ? Array.isArray(req.body.imagesToRemove)
-        ? req.body.imagesToRemove
-        : [req.body.imagesToRemove]
-      : []
-    const newImages = req.files
-      ? req.files.map((file) => `/uploads/${file.filename}`)
-      : []
+    const images = req.files ? req.files.map(file => `/uploads/${file.filename}`) : []
 
-    // Remove specified images from filesystem and database
-    const currentImages = tour.images.filter(
-      (img) => !imagesToRemove.includes(img)
-    )
-    imagesToRemove.forEach((img) => {
-      // Remove leading slash from img to avoid path issues
-      const relativePath = img.startsWith('/') ? img.slice(1) : img
-      const filePath = path.join(__dirname, "../../client/public", relativePath)
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath)
-      }
-    })
-
-    // Combine remaining images with new ones
-    const updatedImages = [...currentImages, ...newImages]
-
-    const updatedData = {
-      ...req.body,
-      images: updatedImages,
+    const tourData = {
+      tourId: generateTourId(),
+      tourName: req.body.tourName,
+      departure: req.body.departure,
+      destination: req.body.destination,
+      category: req.body.category,
+      region: req.body.region,
+      country: req.body.country || "Việt Nam",
+      itinerary: req.body.itinerary,
+      startDate: startDate,
+      endDate: endDate,
+      duration: duration,
+      transportation: req.body.transportation,
       price: Number.parseFloat(req.body.price),
       availableSlots: Number.parseInt(req.body.availableSlots),
-      services: req.body.services ? req.body.services.filter((s) => s.trim() !== "") : []
+      totalSlots: Number.parseInt(req.body.totalSlots) || Number.parseInt(req.body.availableSlots),
+      services: processArray(req.body.services),
+      highlights: processArray(req.body.highlights),
+      included: processArray(req.body.included),
+      excluded: processArray(req.body.excluded),
+      difficulty: req.body.difficulty || "easy",
+      tourType: req.body.tourType || "group",
+      status: req.body.status || "active",
+      featured: req.body.featured === "true" || req.body.featured === true,
+      images: images
     }
 
-    const updatedTour = await Tour.findByIdAndUpdate(
-      req.params.id,
-      updatedData,
-      { new: true, runValidators: true }
-    )
+    const tour = new Tour(tourData)
+    await tour.save()
+
+    res.status(201).json(tour)
+  } catch (error) {
+    console.error("Error creating tour:", error)
+    res.status(500).json({ message: "Server error", error: error.message })
+  }
+})
+// Update tour (Admin only)
+router.put("/:id", employeeAuth, upload.array("images", 5), async (req, res) => {
+  try {
+    let duration
+    if (req.body.startDate && req.body.endDate) {
+      duration = calculateDuration(req.body.startDate, req.body.endDate)
+    }
+
+    const processArray = (data) => {
+      if (!data) return []
+      if (Array.isArray(data)) return data.filter((item) => item.trim() !== "")
+      return data.split("\n").filter((item) => item.trim() !== "")
+    }
+
+    const newImages = req.files ? req.files.map(file => `/uploads/${file.filename}`) : []
+    const imagesToRemove = req.body.imagesToRemove || []
+
+    // Fetch existing tour
+    const tour = await Tour.findById(req.params.id)
+    if (!tour) {
+      return res.status(404).json({ message: "Tour not found" })
+    }
+
+    // Remove images user marked to delete
+    const updatedImages = tour.images.filter(img => !imagesToRemove.includes(img)).concat(newImages)
+
+    const updateData = {
+      tourName: req.body.tourName,
+      departure: req.body.departure,
+      destination: req.body.destination,
+      category: req.body.category,
+      region: req.body.region,
+      country: req.body.country || "Việt Nam",
+      itinerary: req.body.itinerary,
+      startDate: req.body.startDate,
+      endDate: req.body.endDate,
+      transportation: req.body.transportation,
+      price: req.body.price ? Number.parseFloat(req.body.price) : undefined,
+      availableSlots: req.body.availableSlots ? Number.parseInt(req.body.availableSlots) : undefined,
+      totalSlots: req.body.totalSlots ? Number.parseInt(req.body.totalSlots) : undefined,
+      services: processArray(req.body.services),
+      highlights: processArray(req.body.highlights),
+      included: processArray(req.body.included),
+      excluded: processArray(req.body.excluded),
+      difficulty: req.body.difficulty || "easy",
+      tourType: req.body.tourType || "group",
+      status: req.body.status || "active",
+      featured: req.body.featured === "true" || req.body.featured === true,
+      duration: duration,
+      images: updatedImages
+    }
+
+    const updatedTour = await Tour.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true })
 
     res.json(updatedTour)
   } catch (error) {
-    res.status(500).json({ message: "Lỗi server", error: error.message })
+    console.error("Error updating tour:", error)
+    res.status(500).json({ message: "Server error", error: error.message })
   }
 })
+
 
 // Delete tour (Admin only)
 router.delete("/:id", employeeAuth, async (req, res) => {
   try {
-    const tour = await Tour.findById(req.params.id)
+    const tour = await Tour.findByIdAndDelete(req.params.id)
     if (!tour) {
-      return res.status(404).json({ message: "Không tìm thấy tour" })
+      return res.status(404).json({ message: "Tour not found" })
     }
-
-    // Delete associated images from filesystem
-    tour.images.forEach((img) => {
-      // Remove leading slash from img to avoid path issues
-      const relativePath = img.startsWith('/') ? img.slice(1) : img
-      const filePath = path.join(__dirname, "../../client/public", relativePath)
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath)
-      }
-    })
-
-    await Tour.findByIdAndDelete(req.params.id)
-    res.json({ message: "Xóa tour thành công" })
+    res.json({ message: "Tour deleted successfully" })
   } catch (error) {
-    res.status(500).json({ message: "Lỗi server", error: error.message })
+    res.status(500).json({ message: "Server error", error: error.message })
   }
 })
 

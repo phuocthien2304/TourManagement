@@ -1,7 +1,7 @@
 const express = require("express")
 const Booking = require("../models/Booking")
 const Tour = require("../models/Tour")
-const { customerAuth, employeeAuth } = require("../middleware/auth")  // Sửa chỗ này
+const { auth, customerAuth, employeeAuth } = require("../middleware/auth")  // Sửa chỗ này
 
 const router = express.Router()
 
@@ -54,7 +54,7 @@ router.post("/", customerAuth, async (req, res) => {
 })
 
 // Get user bookings (chỉ customer mới xem được lịch sử đặt của mình)
-router.get("/my-bookings", customerAuth, async (req, res) => {
+router.get("/my-bookings", auth, async (req, res) => {
   try {
     const bookings = await Booking.find({ customerId: req.user._id }).populate("tourId").sort({ createdAt: -1 })
 
@@ -65,7 +65,7 @@ router.get("/my-bookings", customerAuth, async (req, res) => {
 })
 
 // Get all bookings (chỉ employee/admin mới xem toàn bộ hệ thống)
-router.get("/", employeeAuth, async (req, res) => {
+router.get("/", employeeAuth, customerAuth, async (req, res) => {
   try {
     const { status, page = 1, limit = 10 } = req.query
 
@@ -94,7 +94,7 @@ router.get("/", employeeAuth, async (req, res) => {
 })
 
 // Update booking status (chỉ employee/admin mới có quyền cập nhật trạng thái booking)
-router.put("/:id/status", employeeAuth, async (req, res) => {
+router.put("/:id/status", employeeAuth,customerAuth, async (req, res) => {
   try {
     const { status } = req.body
 
