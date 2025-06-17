@@ -233,7 +233,7 @@ const TourDetail = () => {
   }
 
   return (
-    <Container>
+    <Container style={{marginTop:"82px"}}>
       {alert.show && (
         <Alert variant={alert.variant} onClose={() => setAlert({ show: false })} dismissible>
           {alert.message}
@@ -358,7 +358,7 @@ const TourDetail = () => {
 
         <Col lg={4}>
           {/* Booking Form */}
-          <Card className="sticky-top" style={{ top: "20px" }}>
+          <Card className="sticky-top" style={{ top: "82px" }}>
             <Card.Header>
               <h4 className="mb-0">Đặt Tour</h4>
             </Card.Header>

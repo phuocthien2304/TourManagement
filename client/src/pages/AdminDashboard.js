@@ -311,11 +311,12 @@ const AdminDashboard = () => {
   }
 
   return (
-    <Container fluid>
+    <Container>
       <Row>
         <Col>
           <h1 className="mb-4">Quản trị hệ thống</h1>
 
+          <h1 className="mb-4" style={{marginTop:"82px"}}>Quản trị hệ thống</h1>
           {alert.show && (
             <Alert variant={alert.variant} onClose={() => setAlert({ show: false })} dismissible>
               {alert.message}

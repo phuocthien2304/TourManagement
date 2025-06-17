@@ -58,7 +58,7 @@ const Register = () => {
   }
 
   return (
-    <Container>
+    <Container  style={{marginTop:"82px"}}>
       <Row className="justify-content-center">
         <Col md={8} lg={6}>
           <Card>

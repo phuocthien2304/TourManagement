@@ -131,11 +131,11 @@ const Tours = () => {
   }
 
   return (
-    <Container>
+    <Container style={{marginTop:"62px"}}>
       <Row>
         {/* Sidebar */}
         <Col lg={3} className="bg-light p-4">
-          <div className="sticky-top" style={{ top: "20px" }}>
+          <div className="sticky-top" style={{ top: "82px" }}>
             <h4 className="mb-4">
               <i className="bi bi-funnel me-2"></i>
               Danh mục Tours
@@ -248,7 +248,7 @@ const Tours = () => {
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={2}>
+                  {/* <Col md={2}>
                     <Form.Group>
                       <Form.Label>Điểm khởi hành</Form.Label>
                       <Form.Control
@@ -259,8 +259,8 @@ const Tours = () => {
                         placeholder="Khởi hành từ..."
                       />
                     </Form.Group>
-                  </Col>
-                  <Col md={1}>
+                  </Col> */}
+                  <Col md={2}>
                     <Form.Group>
                       <Form.Label>Giá từ</Form.Label>
                       <Form.Control
@@ -272,7 +272,7 @@ const Tours = () => {
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={1}>
+                  <Col md={2}>
                     <Form.Group>
                       <Form.Label>Giá đến</Form.Label>
                       <Form.Control
