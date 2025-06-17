@@ -65,7 +65,7 @@ router.get("/my-bookings", auth, async (req, res) => {
 })
 
 // Get all bookings (chỉ employee/admin mới xem toàn bộ hệ thống)
-router.get("/", employeeAuth, customerAuth, async (req, res) => {
+router.get("/", employeeAuth, async (req, res) => {
   try {
     const { status, page = 1, limit = 10 } = req.query
 
@@ -94,7 +94,7 @@ router.get("/", employeeAuth, customerAuth, async (req, res) => {
 })
 
 // Update booking status (chỉ employee/admin mới có quyền cập nhật trạng thái booking)
-router.put("/:id/status", employeeAuth,customerAuth, async (req, res) => {
+router.put("/:id/status", employeeAuth, async (req, res) => {
   try {
     const { status } = req.body
 

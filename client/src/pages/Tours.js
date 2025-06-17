@@ -6,6 +6,7 @@ import { Link } from "react-router-dom"
 import api from "../services/api"
 
 const Tours = () => {
+  const backendUrl = process.env.REACT_APP_API_URL || "http://localhost:5000"
   const [tours, setTours] = useState([])
   const [categories, setCategories] = useState({})
   const [loading, setLoading] = useState(true)
@@ -336,7 +337,11 @@ const Tours = () => {
                         <div className="position-relative">
                           <Card.Img
                             variant="top"
-                            src={tour.images?.[0] || "/placeholder.svg?height=200&width=300"}
+                              src={
+                              tour.images?.[0]
+                                ? `${backendUrl}${tour.images[0]}`
+                                : "/placeholder.svg?height=200&width=300"
+                            }
                             style={{ height: "200px", objectFit: "cover" }}
                           />
                           <Badge

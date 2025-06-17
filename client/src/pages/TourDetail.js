@@ -7,6 +7,7 @@ import { useAuth } from "../contexts/AuthContext"
 import api from "../services/api"
 
 const TourDetail = () => {
+  const backendUrl = process.env.REACT_APP_API_URL || "http://localhost:5000"
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -249,7 +250,7 @@ const TourDetail = () => {
                 <Carousel.Item key={index}>
                   <img
                     className="d-block w-100"
-                    src={image || "/placeholder.svg"}
+                    src={`http://localhost:5000${image}` || "/placeholder.svg"}
                     alt={`${tour.tourName} ${index + 1}`}
                     style={{ height: "400px", objectFit: "cover" }}
                   />
