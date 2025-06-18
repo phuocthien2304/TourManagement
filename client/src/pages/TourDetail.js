@@ -2,9 +2,222 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { Container, Row, Col, Card, Button, Form, Alert, Badge, Carousel, Modal } from "react-bootstrap"
+import {
+  Container, Row, Col, Card, Button, Form, Alert,
+  Badge, Carousel, Modal, Image, FormCheck
+} from "react-bootstrap"
 import { useAuth } from "../contexts/AuthContext"
+import { CreditCard, Check, Copy, X } from "lucide-react"
 import api from "../services/api"
+
+function PaymentModal({ isOpen, onClose, paymentInfo, onConfirm }) {
+  const [copied, setCopied] = useState({ accountNumber: false, amount: false, content: false, all: false })
+
+  const copyToClipboard = async (text, field) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(prev => ({ ...prev, [field]: true }))
+      setTimeout(() => setCopied(prev => ({ ...prev, [field]: false })), 2000)
+    } catch (err) { console.error("Failed to copy: ", err) }
+  }
+
+  const copyAllToClipboard = async () => {
+    const allText = `Ngân hàng: MBBank\nChủ tài khoản: NGUYEN PHUOC THIEN\nSố tài khoản: 6923042004\nSố tiền: ${paymentInfo.amount}\nNội dung: ${paymentInfo.content}`
+    try {
+      await navigator.clipboard.writeText(allText)
+      setCopied(prev => ({ ...prev, all: true }))
+      setTimeout(() => setCopied(prev => ({ ...prev, all: false })), 2000)
+    } catch (err) { console.error("Failed to copy: ", err) }
+  }
+
+  return (<Modal show={isOpen} onHide={onClose} centered size="lg" scrollable>
+  <Modal.Header>
+    <Modal.Title>Thông tin thanh toán</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    <Row>
+      <Col md={6}>
+        <h5>Thông tin đơn hàng</h5>
+        <Card className="p-3 ">
+          <div className="d-flex flex-nowrap">
+          <div className="me-2">
+            <p className="mb-1 text-muted small">Ngân hàng:</p>
+            <p className="mb-1 text-muted small">Chủ tài khoản:</p>
+          </div>
+          <div>
+          <p className="fw-bold text-primary mb-0">MBBank</p>
+          <p className="fw-bold mb-0 ">NGUYEN PHUOC THIEN</p>
+          </div>
+          </div>
+        </Card>
+        <Card className="p-3 mb-3">
+          <p className="mb-1 text-muted small">Số tài khoản</p>
+          <div className="d-flex justify-content-between align-items-center">
+            <p className="fw-bold mb-0 font-monospace">6923042004</p>
+            <Button
+              variant="link"
+              size="sm"
+              className="p-0 text-primary"
+              style={{ whiteSpace: "nowrap" }}
+              onClick={() => copyToClipboard("6923042004", "accountNumber")}
+            >
+              {copied.accountNumber ? "Đã sao chép" : "Sao chép"}
+            </Button>
+          </div>
+        </Card>
+        <Card className="p-3 mb-3">
+          <p className="mb-1 text-muted small">Số tiền cần chuyển</p>
+          <div className="d-flex justify-content-between align-items-center">
+            <p className="fw-bold text-danger fs-4 mb-0">{paymentInfo.amount || "..."}</p>
+            <Button
+              variant="link"
+              size="sm"
+              className="p-0 text-primary"
+              style={{ whiteSpace: "nowrap" }}
+              onClick={() => copyToClipboard(paymentInfo.amount.replace(/[^\d]/g, ""), "amount")}
+            >
+              {copied.amount ? "Đã sao chép" : "Sao chép"}
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="p-3 mb-3">
+          <p className="mb-1 text-muted small">Nội dung chuyển khoản</p>
+          <div className="d-flex justify-content-between align-items-center">
+            <p className="fw-bold mb-0 text-break">{paymentInfo.content || "..."}</p>
+            <Button
+              variant="link"
+              size="sm"
+              className="p-0 text-priamry"
+              style={{ whiteSpace: "nowrap" }}
+              onClick={() => copyToClipboard(paymentInfo.content, "content")}
+            >
+              {copied.content ? "Đã sao chép" : "Sao chép"}
+            </Button>
+          </div>
+        </Card>
+
+        
+
+        
+      </Col>
+
+      <Col md={6} className="text-center">
+        <p className="text-muted mb-2 large"><strong>Quét mã qua ứng dụng Ngân hàng/Ví điện tử</strong></p>
+        <Image
+          src="http://localhost:5000/uploads/qr_payment.jpg"
+          alt="QR Code"
+          fluid
+          style={{ maxWidth: "80%", height: "auto" }}
+        />
+        <p className="mt-2 small text-muted">Scan to Pay</p>
+        <Alert variant="primary" className="text-center">
+          <p className="mb-0 small">Sau khi chuyển khoản, tour sẽ được xác nhận trong 15 phút</p>
+        </Alert>
+      </Col>
+    </Row>
+  </Modal.Body>
+  <Modal.Footer>
+    <Button variant="secondary" onClick={onClose}>Hủy</Button>
+    <Button variant="primary" onClick={onConfirm}>Xác nhận</Button>
+  </Modal.Footer>
+</Modal>
+
+  )
+}
+
+function BookingConfirmationModal({ isOpen, onClose, bookingData, tour, user, onConfirm }) {
+  const [paymentMethod, setPaymentMethod] = useState("onTour")
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(price)
+  }
+
+  const handleConfirm = () => {
+    onConfirm(paymentMethod)
+  }
+
+  return (
+    <Modal show={isOpen} onHide={onClose} centered size="lg">
+      <Modal.Header closeButton>
+        <Modal.Title>Xác nhận thông tin đặt tour</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Card className="mb-3">
+          <Card.Body>
+            <h5>Thông tin khách hàng</h5>
+            <p><strong>Họ và tên:</strong> {user?.fullName}</p>
+            <p><strong>Email:</strong> {user?.email}</p>
+            <p><strong>Số điện thoại:</strong> {user?.phoneNumber}</p>
+          </Card.Body>
+        </Card>
+        <Card className="mb-3">
+          <Card.Body>
+            <h5>Thông tin tour</h5>
+            <p><strong>Tên tour:</strong> {tour?.tourName}</p>
+            <p><strong>Số lượng người:</strong> {bookingData?.numberOfPeople}</p>
+            <p><strong>Giá tiền:</strong> {formatPrice(tour?.price * bookingData?.numberOfPeople)}</p>
+            <p><strong>Ghi chú:</strong> {bookingData?.notes || "Không có"}</p>
+          </Card.Body>
+        </Card>
+        <Card>
+          <Card.Body>
+            <h5>Chọn phương thức thanh toán</h5>
+            <Form>
+              <FormCheck
+                type="radio"
+                label="Thanh toán khi đi tour"
+                name="paymentMethod"
+                value="onTour"
+                checked={paymentMethod === "onTour"}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="mb-2"
+              />
+              <FormCheck
+                type="radio"
+                label="Thanh toán chuyển khoản"
+                name="paymentMethod"
+                value="bankTransfer"
+                checked={paymentMethod === "bankTransfer"}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+              />
+            </Form>
+          </Card.Body>
+        </Card>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onClose}>Hủy</Button>
+        <Button variant="primary" onClick={handleConfirm}>Xác nhận</Button>
+      </Modal.Footer>
+    </Modal>
+  )
+}
+
+function BookingCompletionModal({ isOpen, onClose }) {
+  return (
+    <Modal show={isOpen} onHide={onClose} centered size="md">
+      <Modal.Header closeButton>
+        <Modal.Title>Hoàn tất đặt tour</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Alert variant="success" className="text-center">
+          <p className="mb-1 fw-medium">Đặt tour thành công!</p>
+          <p className="mb-0 small">Vui lòng kiểm tra lịch sử đặt tour hoặc email để xem chi tiết.</p>
+        </Alert>
+        <Card className="text-center">
+          <Card.Body>
+            <p className="text-muted small mb-1">📞 Hotline hỗ trợ: <span className="fw-medium">1900-1234</span></p>
+          </Card.Body>
+        </Card>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="primary" onClick={onClose}>Đóng</Button>
+      </Modal.Footer>
+    </Modal>
+  )
+}
 
 const TourDetail = () => {
   const backendUrl = process.env.REACT_APP_API_URL || "http://localhost:5000"
@@ -16,10 +229,16 @@ const TourDetail = () => {
   const [canReview, setCanReview] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showReviewModal, setShowReviewModal] = useState(false)
+  const [showPayment, setShowPayment] = useState(false)
+  const [showConfirmation, setShowConfirmation] = useState(false)
+  const [showCompletion, setShowCompletion] = useState(false)
+  
   const [bookingData, setBookingData] = useState({
     numberOfPeople: 1,
     notes: "",
   })
+  const [paymentInfo, setPaymentInfo] = useState({ amount: "", content: "" })
+
   const [reviewData, setReviewData] = useState({
     rating: 5,
     comment: "",
@@ -81,7 +300,48 @@ const TourDetail = () => {
     }
   }
 
-  const handleBooking = async (e) => {
+  // const handleBooking = async (e) => {
+  //   e.preventDefault()
+
+  //   if (!user) {
+  //     navigate("/login")
+  //     return
+  //   }
+
+  //   try {
+  //     const response = await api.post("/bookings", {
+  //       tourId: id,
+  //       numberOfPeople: bookingData.numberOfPeople,
+  //       notes: bookingData.notes,
+  //     })
+
+  //     setAlert({
+  //       show: true,
+  //       message: "Thông tin đặt tour đã được ghi nhận. Vui lòng xác nhận thông tin.",
+  //       variant: "success",
+  //     })
+
+  //     setTour((prev) => ({
+  //       ...prev,
+  //       availableSlots: prev.availableSlots - bookingData.numberOfPeople,
+  //     }))
+
+  //     setPaymentInfo({
+  //       amount: formatPrice(tour.price * bookingData.numberOfPeople),
+  //       content: tour.tourName,
+  //     })
+
+  //     setShowConfirmation(true)
+
+  //   } catch (error) {
+  //     setAlert({
+  //       show: true,
+  //       message: error.response?.data?.message || "Có lỗi xảy ra khi đặt tour",
+  //       variant: "danger",
+  //     })
+  //   }
+  // }
+  const handleBooking = (e) => {
     e.preventDefault()
 
     if (!user) {
@@ -89,35 +349,115 @@ const TourDetail = () => {
       return
     }
 
-    try {
-      const response = await api.post("/bookings", {
-        tourId: id,
-        numberOfPeople: bookingData.numberOfPeople,
-        notes: bookingData.notes,
-      })
-
-      setAlert({
-        show: true,
-        message: "Đặt tour thành công! Vui lòng kiểm tra lịch sử đặt tour.",
-        variant: "success",
-      })
-
-      // Update available slots
-      setTour((prev) => ({
-        ...prev,
-        availableSlots: prev.availableSlots - bookingData.numberOfPeople,
-      }))
-
-      // Reset form
-      setBookingData({ numberOfPeople: 1, notes: "" })
-    } catch (error) {
-      setAlert({
-        show: true,
-        message: error.response?.data?.message || "Có lỗi xảy ra khi đặt tour",
-        variant: "danger",
-      })
-    }
+    // Chỉ hiện modal xác nhận, chưa đặt tour
+    setShowConfirmation(true)
   }
+
+
+
+  // const handleConfirmation = (paymentMethod) => {
+  //   setShowConfirmation(false)
+  //   if (paymentMethod === "bankTransfer") {
+  //     setShowPayment(true)
+  //   } else {
+  //     setShowCompletion(true)
+  //   }
+  // }
+  const createBooking = async () => {
+  const response = await api.post("/bookings", {
+    tourId: id,
+    numberOfPeople: bookingData.numberOfPeople,
+    notes: bookingData.notes,
+  })
+
+  // Cập nhật số chỗ còn lại
+  setTour((prev) => ({
+    ...prev,
+    availableSlots: prev.availableSlots - bookingData.numberOfPeople,
+  }))
+}
+
+//   const handleConfirmation = async (paymentMethod) => {
+//   try {
+//     const response = await api.post("/bookings", {
+//       tourId: id,
+//       numberOfPeople: bookingData.numberOfPeople,
+//       notes: bookingData.notes,
+//     })
+
+//     // Cập nhật số chỗ còn lại
+//     setTour((prev) => ({
+//       ...prev,
+//       availableSlots: prev.availableSlots - bookingData.numberOfPeople,
+//     }))
+
+//     // Tạo dữ liệu thanh toán
+//     setPaymentInfo({
+//       amount: formatPrice(tour.price * bookingData.numberOfPeople),
+//       content: tour.tourName,
+//     })
+
+//     setShowConfirmation(false)
+
+//     if (paymentMethod === "bankTransfer") {
+//       setShowPayment(true)
+//     } else {
+//       setShowCompletion(true)
+//     }
+
+//   } catch (error) {
+//     setAlert({
+//       show: true,
+//       message: error.response?.data?.message || "Có lỗi xảy ra khi đặt tour",
+//       variant: "danger",
+//     })
+//     setShowConfirmation(false)
+//   }
+// }
+const handleConfirmation = (paymentMethod) => {
+  setShowConfirmation(false)
+
+  // 👉 ĐẶT THÔNG TIN CHUYỂN KHOẢN Ở ĐÂY
+  if (paymentMethod === "bankTransfer") {
+    setPaymentInfo({
+      amount: formatPrice(tour.price * bookingData.numberOfPeople),
+      content: tour.tourName,
+    })
+
+    setShowPayment(true)
+  } else {
+    createBooking()
+      .then(() => setShowCompletion(true))
+      .catch(error => {
+        setAlert({
+          show: true,
+          message: error.response?.data?.message || "Có lỗi xảy ra khi đặt tour",
+          variant: "danger",
+        })
+      })
+  }
+}
+
+
+  // const handlePaymentConfirm = () => {
+  //   setShowPayment(false)
+  //   setShowCompletion(true)
+  // }
+const handlePaymentConfirm = async () => {
+  try {
+    await createBooking()
+    setShowPayment(false)
+    setShowCompletion(true)
+  } catch (error) {
+    setAlert({
+      show: true,
+      message: error.response?.data?.message || "Có lỗi xảy ra khi đặt tour",
+      variant: "danger",
+    })
+    setShowPayment(false)
+  }
+}
+
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files)
@@ -130,7 +470,6 @@ const TourDetail = () => {
       return
     }
 
-    // Convert files to base64 for preview (in real app, upload to server)
     files.forEach((file) => {
       const reader = new FileReader()
       reader.onload = (e) => {
@@ -243,7 +582,6 @@ const TourDetail = () => {
 
       <Row>
         <Col lg={8}>
-          {/* Tour Images */}
           {tour.images && tour.images.length > 0 ? (
             <Carousel className="mb-4">
               {tour.images.map((image, index) => (
@@ -266,33 +604,20 @@ const TourDetail = () => {
             />
           )}
 
-          {/* Tour Information */}
           <Card className="mb-4">
             <Card.Body>
               <h1 className="mb-3">{tour.tourName}</h1>
 
               <Row className="mb-3">
                 <Col md={6}>
-                  <p>
-                    <strong>Điểm khởi hành:</strong> {tour.departure}
-                  </p>
-                  <p>
-                    <strong>Điểm đến:</strong> {tour.destination}
-                  </p>
-                  <p>
-                    <strong>Phương tiện:</strong> {tour.transportation}
-                  </p>
+                  <p><strong>Điểm khởi hành:</strong> {tour.departure}</p>
+                  <p><strong>Điểm đến:</strong> {tour.destination}</p>
+                  <p><strong>Phương tiện:</strong> {tour.transportation}</p>
                 </Col>
                 <Col md={6}>
-                  <p>
-                    <strong>Ngày bắt đầu:</strong> {formatDate(tour.startDate)}
-                  </p>
-                  <p>
-                    <strong>Ngày kết thúc:</strong> {formatDate(tour.endDate)}
-                  </p>
-                  <p>
-                    <strong>Còn lại:</strong> <Badge bg="info">{tour.availableSlots} chỗ</Badge>
-                  </p>
+                  <p><strong>Ngày bắt đầu:</strong> {formatDate(tour.startDate)}</p>
+                  <p><strong>Ngày kết thúc:</strong> {formatDate(tour.endDate)}</p>
+                  <p><strong>Còn lại:</strong> <Badge bg="info">{tour.availableSlots} chỗ</Badge></p>
                 </Col>
               </Row>
 
@@ -312,7 +637,6 @@ const TourDetail = () => {
             </Card.Body>
           </Card>
 
-          {/* Reviews */}
           <Card>
             <Card.Header className="d-flex justify-content-between align-items-center">
               <h4 className="mb-0">Đánh giá từ khách hàng</h4>
@@ -358,7 +682,6 @@ const TourDetail = () => {
         </Col>
 
         <Col lg={4}>
-          {/* Booking Form */}
           <Card className="sticky-top" style={{ top: "82px" }}>
             <Card.Header>
               <h4 className="mb-0">Đặt Tour</h4>
@@ -420,7 +743,30 @@ const TourDetail = () => {
         </Col>
       </Row>
 
-      {/* Review Modal */}
+      <BookingConfirmationModal
+        isOpen={showConfirmation}
+        onClose={() => setShowConfirmation(false)}
+        bookingData={bookingData}
+        tour={tour}
+        user={user}
+        onConfirm={handleConfirmation}
+      />
+
+      <PaymentModal
+        isOpen={showPayment}
+        onClose={() => setShowPayment(false)}
+        paymentInfo={paymentInfo}
+        onConfirm={handlePaymentConfirm}
+      />
+
+      <BookingCompletionModal
+        isOpen={showCompletion}
+        onClose={() => {
+          setShowCompletion(false)
+          setBookingData({ numberOfPeople: 1, notes: "" })
+        }}
+      />
+
       <Modal show={showReviewModal} onHide={() => setShowReviewModal(false)} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Đánh giá tour: {tour.tourName}</Modal.Title>
