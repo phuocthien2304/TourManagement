@@ -87,6 +87,7 @@ app.use("/api/tours", require("./routes/tours"))
 app.use("/api/bookings", require("./routes/bookings"))
 app.use("/api/reviews", require("./routes/reviews"))
 app.use("/api/statistics", require("./routes/statistics"))
+app.use('/api/notifications', require('./routes/notifications'));
 
 // Health check route
 app.get("/", (req, res) => {

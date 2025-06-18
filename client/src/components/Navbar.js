@@ -1,12 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import { Navbar, Nav, Container, Button, Dropdown, Badge } from "react-bootstrap"
 import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
 import { useSocket } from "../contexts/SocketContext" // <-- Thêm hook socket
 import { toast } from 'react-toastify';             // <-- Thêm toast
 import { FaBell } from "react-icons/fa"; 
+import { getNotifications, markNotificationAsRead } from '../services/api';
+import './Navbar.css';
 
 const NavigationBar = () => {
   const { user, logout } = useAuth()
@@ -15,6 +17,27 @@ const NavigationBar = () => {
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // const unreadCount = notifications.filter(n => !n.read).length;
+
+  useEffect(() => {
+    if (user) {
+        const fetchNotifications = async () => {
+            try {
+                const data = await getNotifications();
+                setNotifications(data);
+            } catch (error) {
+                console.error("Không thể tải thông báo.");
+            }
+        };
+        fetchNotifications();
+    } else {
+        setNotifications([]); // Clear notifications on logout
+    }
+}, [user]);
+
 
   useEffect(() => {
     // Chỉ lắng nghe nếu có socket, có user và user đó không phải admin
@@ -44,6 +67,33 @@ const NavigationBar = () => {
     }
   }, [socket, user]);
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+            setShowDropdown(false);
+        }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+    };
+}, [dropdownRef]);
+
+const handleNotificationClick = async (notification) => {
+  try {
+      if (!notification.read) {
+          await markNotificationAsRead(notification._id);
+          setNotifications(prev =>
+              prev.map(n => n._id === notification._id ? { ...n, read: true } : n)
+          );
+      }
+      setShowDropdown(false);
+      navigate(notification.link || '/');
+  } catch (error) {
+      console.error("Lỗi khi xử lý thông báo:", error);
+  }
+};
+
   const handleLogout = () => {
     logout()
     navigate("/")
@@ -71,45 +121,37 @@ const NavigationBar = () => {
             {user ? (
               <>
 
-<Dropdown as={Nav.Item} align="end" onToggle={(isOpen) => {
-                  // Khi người dùng mở dropdown, reset số thông báo chưa đọc
-                  if (isOpen) {
-                    setUnreadCount(0);
-                  }
-                }}>
-                  <Dropdown.Toggle as={Nav.Link} id="notification-dropdown" className="position-relative">
-                    <FaBell size={20} />
-                    {unreadCount > 0 && (
-                      <Badge 
-                        pill 
-                        bg="danger" 
-                        className="position-absolute top-0 start-100 translate-middle"
-                        style={{ fontSize: '0.6em', padding: '0.4em' }}
-                      >
-                        {unreadCount}
-                      </Badge>
-                    )}
-                  </Dropdown.Toggle>
-
-                  <Dropdown.Menu style={{ minWidth: '300px' }}>
-                    <Dropdown.Header>Thông báo</Dropdown.Header>
-                    {notifications.length > 0 ? (
-                      notifications.slice(0, 5).map((notif, index) => (
-                        <Dropdown.ItemText key={index} className="px-3 py-2 text-wrap">
-                          <small>
-                            {notif.status === 'confirmed' ? '✅' : '❌'} {notif.message}
-                          </small>
-                        </Dropdown.ItemText>
-                      ))
-                    ) : (
-                      <Dropdown.ItemText className="text-muted text-center py-2">Không có thông báo mới.</Dropdown.ItemText>
-                    )}
-                    <Dropdown.Divider />
-                    <Dropdown.Item as={Link} to="/bookings" className="text-center">
-                      Xem tất cả lịch sử
-                    </Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown>
+{user.role === 'customer' ? (
+                            <Link to="/bookings">Lịch sử Booking</Link>
+                        ) : (
+                            <Link to="/dashboard">Dashboard</Link>
+                        )}
+                        
+                        {/* Notification Bell */}
+                        <div className="notification-wrapper" ref={dropdownRef}>
+                            <button onClick={() => setShowDropdown(!showDropdown)} className="notification-bell">
+                                🔔
+                                {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+                            </button>
+                            {showDropdown && (
+                                <div className="notification-dropdown">
+                                    {notifications.length > 0 ? (
+                                        notifications.map(n => (
+                                            <div 
+                                                key={n._id} 
+                                                className={`notification-item ${n.read ? 'read' : 'unread'}`}
+                                                onClick={() => handleNotificationClick(n)}
+                                            >
+                                                <p>{n.message}</p>
+                                                <small>{new Date(n.createdAt).toLocaleString()}</small>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="notification-item">Không có thông báo.</div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
                 {user.role === "admin" && (
                   <Nav.Link as={Link} to="/admin">

@@ -76,34 +76,17 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
       }, [activeTab]);
     
       useEffect(() => {
-        // Chỉ lắng nghe sự kiện nếu là admin và đã kết nối socket
-        console.log("[CLIENT LOG]: User data:", user);
-        if (socket && user?.role === 'admin') {
-            const handleNotification = (notification) => {
-                if (notification.type === 'new_booking') {
-                    toast(
-                        <NewBookingToast 
-                            notification={notification}
-                            onUpdateStatus={handleBookingStatusUpdate}
-                        />, 
-                        { 
-                            toastId: notification.data.bookingId, // Dùng ID để tránh toast trùng lặp
-                            autoClose: false,
-                        }
-                    );
-                  // Tự động tải lại bảng khi có đơn mới
-                  if (activeTab === 'bookings') {
-                      fetchData();
-                  }
-                }
-            };
-            socket.on('getNotification', handleNotification);
-    
-            return () => {
-                socket.off('getNotification', handleNotification);
-            };
-        }
-      }, [socket, user, activeTab]);
+      if (socket && (user?.role === 'admin' || user?.role === 'employee') && activeTab === 'bookings') {
+        socket.on('getNotification', (notification) => {
+          if (notification.type === 'new_booking') {
+            fetchData(); // Cập nhật danh sách bookings nếu ở tab bookings
+          }
+        });
+        return () => {
+          socket.off('getNotification');
+        };
+      }
+    }, [socket, user, activeTab]);
     
       const fetchData = async () => {
         try {

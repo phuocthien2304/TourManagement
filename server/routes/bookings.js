@@ -1,7 +1,10 @@
 const express = require("express")
 const Booking = require("../models/Booking")
 const Tour = require("../models/Tour")
-const { auth, customerAuth, employeeAuth } = require("../middleware/auth")  // Sửa chỗ này
+const { auth, customerAuth, employeeAuth } = require("../middleware/auth")
+const Employee = require("../models/Employee")
+const Notification = require("../models/Notification")
+const Customer = require("../models/Customer")
 
 const router = express.Router()
 
@@ -12,16 +15,20 @@ const generateBookingId = () => {
 
 // Create booking (chỉ customer được phép tạo booking)
 router.post("/", customerAuth, async (req, res) => {
+  if (req.user.role !== "customer") {
+    return res.status(403).json({ msg: "Chỉ khách hàng mới được tạo booking" })
+  }
+
+  const { tourId, numberOfPeople, notes } = req.body
   try {
-    const { tourId, numberOfPeople, notes } = req.body;
-    const tour = await Tour.findById(tourId);
+    const tour = await Tour.findById(tourId)
     if (!tour) {
-      return res.status(404).json({ message: "Tour not found" });
+      return res.status(404).json({ message: "Tour not found" })
     }
     if (tour.availableSlots < numberOfPeople) {
-      return res.status(400).json({ message: "Not enough available slots" });
+      return res.status(400).json({ message: "Not enough available slots" })
     }
-    const totalAmount = tour.price * numberOfPeople;
+    const totalAmount = tour.price * numberOfPeople
     const booking = new Booking({
       bookingId: generateBookingId(),
       customerId: req.user._id,
@@ -29,29 +36,57 @@ router.post("/", customerAuth, async (req, res) => {
       numberOfPeople,
       totalAmount,
       notes,
-    });
-    await booking.save();
+    })
+    await booking.save()
+    console.log("[SERVER LOG]: Booking created:", { bookingId: booking._id, tourId, customerId: req.user._id })
 
-    // <-- SỬA LẠI: Dùng req.io và phát cho tất cả mọi người -->
-    req.io.emit('getNotification', {
-        type: 'new_booking',
-        data: {
-            bookingId: booking._id, // Gửi _id để dễ xử lý
-            tourName: tour.tourName,
-            customerName: req.user.fullName,
-            message: `Khách hàng ${req.user.fullName} vừa đặt tour "${tour.tourName}".`
+    try {
+      const admin = await Employee.findOne({ role: "admin" })
+      if (admin) {
+        const notification = new Notification({
+          recipient: admin._id,
+          recipientModel: "Employee",
+          sender: req.user._id,
+          senderModel: "Customer",
+          type: "new_booking",
+          message: `Khách hàng ${req.user.fullName} vừa đặt tour "${tour.tourName}".`,
+          link: `/admin/bookings`,
+        })
+        await notification.save()
+        console.log("[SERVER LOG]: Notification saved for admin:", admin._id)
+
+        const adminSocket = req.getUser(admin._id.toString())
+        if (adminSocket) {
+          console.log("[SERVER LOG]: Sending getNotification to admin socket:", adminSocket.socketId)
+          req.io.to(adminSocket.socketId).emit("getNotification", {
+            type: "new_booking",
+            data: {
+              bookingId: booking._id,
+              tourName: tour.tourName,
+              customerName: req.user.fullName,
+              message: `Khách hàng ${req.user.fullName} vừa đặt tour "${tour.tourName}".`,
+            },
+          })
+        } else {
+          console.log("[SERVER LOG]: Admin not online:", admin._id)
         }
-    });
+      } else {
+        console.log("[SERVER LOG]: No admin found")
+      }
+    } catch (notificationError) {
+      console.error("[SERVER ERROR]: Error in creating or sending notification:", notificationError.message)
+    }
 
-    tour.availableSlots -= numberOfPeople;
-    await tour.save();
-    
-    await booking.populate(["customerId", "tourId"]);
-    res.status(201).json(booking);
+    tour.availableSlots -= numberOfPeople
+    await tour.save()
+
+    await booking.populate(["customerId", "tourId"])
+    res.status(201).json(booking)
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("[SERVER ERROR]: Error in booking creation:", error.message)
+    res.status(500).json({ message: "Server error", error: error.message })
   }
-});
+})
 
 // Get user bookings (chỉ customer mới xem được lịch sử đặt của mình)
 router.get("/my-bookings", auth, async (req, res) => {
@@ -65,7 +100,7 @@ router.get("/my-bookings", auth, async (req, res) => {
 })
 
 // Get all bookings (chỉ employee/admin mới xem toàn bộ hệ thống)
-router.get("/", async (req, res) => {
+router.get("/", employeeAuth, async (req, res) => {
   try {
     const { status, page = 1, limit = 10 } = req.query
 
@@ -96,43 +131,93 @@ router.get("/", async (req, res) => {
 // Update booking status (chỉ employee/admin mới có quyền cập nhật trạng thái booking)
 router.put("/:id/status", employeeAuth, async (req, res) => {
   try {
-    const { status } = req.body;
-    const booking = await Booking.findByIdAndUpdate(req.params.id, { status }, { new: true }).populate("tourId customerId");
+    const { status } = req.body
+    const booking = await Booking.findByIdAndUpdate(req.params.id, { status }, { new: true }).populate(
+      "tourId customerId",
+    )
 
     if (!booking) {
-      return res.status(404).json({ message: "Booking not found" });
+      return res.status(404).json({ message: "Booking not found" })
     }
 
     if (status === "cancelled") {
-      const tour = await Tour.findById(booking.tourId);
+      const tour = await Tour.findById(booking.tourId)
       if (tour) {
-        tour.availableSlots += booking.numberOfPeople;
-        await tour.save();
+        tour.availableSlots += booking.numberOfPeople
+        await tour.save()
       }
     }
 
-    // <-- SỬA LẠI: Gửi thông báo đến khách hàng cụ thể -->
-    // Lấy khách hàng từ booking.customerId
-    const customer = booking.customerId;
-    if (customer) {
-      const receiver = req.getUser(customer._id.toString()); // Dùng req.getUser
-      if (receiver) {
-          req.io.to(receiver.socketId).emit('getNotification', { // Dùng req.io
-              type: 'booking_status_update',
-              data: {
-                  bookingId: booking._id,
-                  tourName: booking.tourId.tourName,
-                  status: booking.status,
-                  message: `Đơn đặt tour "${booking.tourId.tourName}" của bạn đã được ${status === 'confirmed' ? 'xác nhận' : 'hủy'}.`
-              }
-          });
+    // Sửa lại phần notification khi status là 'confirmed'
+    if (status === "confirmed") {
+      try {
+        // Đảm bảo customerId đã được populate
+        const customerId = booking.customerId._id || booking.customerId
+
+        const notification = new Notification({
+          recipient: customerId,
+          recipientModel: "Customer",
+          sender: req.user._id,
+          senderModel: "Employee",
+          type: "booking_confirmation",
+          message: `Booking cho tour "${booking.tourId.tourName}" của bạn đã được xác nhận.`,
+          link: "/booking-history",
+        })
+        await notification.save()
+        console.log("[SERVER LOG]: Notification saved for customer:", customerId)
+
+        // Gửi thông báo qua socket
+        const customerSocket = req.getUser(customerId.toString())
+        if (customerSocket) {
+          console.log("[SERVER LOG]: Sending notification to customer socket:", customerSocket.socketId)
+          req.io.to(customerSocket.socketId).emit("getNotification", {
+            type: "booking_status_update",
+            data: {
+              bookingId: booking._id,
+              tourName: booking.tourId.tourName,
+              status: booking.status,
+              message: `Đơn đặt tour "${booking.tourId.tourName}" của bạn đã được xác nhận.`,
+            },
+          })
+        } else {
+          console.log("[SERVER LOG]: Customer not online:", customerId)
+        }
+      } catch (notificationError) {
+        console.error(
+          "[SERVER ERROR]: Error in creating or sending confirmation notification:",
+          notificationError.message,
+        )
+        // Không return ở đây để vẫn trả về booking đã cập nhật
       }
     }
 
-    res.json(booking);
+    // Gửi thông báo cho các trạng thái khác
+    if (status !== "confirmed") {
+      try {
+        const customerId = booking.customerId._id || booking.customerId
+        const customerSocket = req.getUser(customerId.toString())
+
+        if (customerSocket) {
+          req.io.to(customerSocket.socketId).emit("getNotification", {
+            type: "booking_status_update",
+            data: {
+              bookingId: booking._id,
+              tourName: booking.tourId.tourName,
+              status: booking.status,
+              message: `Đơn đặt tour "${booking.tourId.tourName}" của bạn đã được ${status === "cancelled" ? "hủy" : "đánh dấu đã thanh toán"}.`,
+            },
+          })
+        }
+      } catch (socketError) {
+        console.error("[SERVER ERROR]: Error sending socket notification:", socketError.message)
+      }
+    }
+
+    res.json(booking)
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("[SERVER ERROR]: Error in updating booking status:", error.message)
+    res.status(500).json({ message: "Server error", error: error.message })
   }
-});
+})
 
 module.exports = router
