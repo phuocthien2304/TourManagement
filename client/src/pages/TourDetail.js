@@ -352,17 +352,6 @@ const TourDetail = () => {
     // Chỉ hiện modal xác nhận, chưa đặt tour
     setShowConfirmation(true)
   }
-
-
-
-  // const handleConfirmation = (paymentMethod) => {
-  //   setShowConfirmation(false)
-  //   if (paymentMethod === "bankTransfer") {
-  //     setShowPayment(true)
-  //   } else {
-  //     setShowCompletion(true)
-  //   }
-  // }
   const createBooking = async () => {
   const response = await api.post("/bookings", {
     tourId: id,
@@ -377,43 +366,6 @@ const TourDetail = () => {
   }))
 }
 
-//   const handleConfirmation = async (paymentMethod) => {
-//   try {
-//     const response = await api.post("/bookings", {
-//       tourId: id,
-//       numberOfPeople: bookingData.numberOfPeople,
-//       notes: bookingData.notes,
-//     })
-
-//     // Cập nhật số chỗ còn lại
-//     setTour((prev) => ({
-//       ...prev,
-//       availableSlots: prev.availableSlots - bookingData.numberOfPeople,
-//     }))
-
-//     // Tạo dữ liệu thanh toán
-//     setPaymentInfo({
-//       amount: formatPrice(tour.price * bookingData.numberOfPeople),
-//       content: tour.tourName,
-//     })
-
-//     setShowConfirmation(false)
-
-//     if (paymentMethod === "bankTransfer") {
-//       setShowPayment(true)
-//     } else {
-//       setShowCompletion(true)
-//     }
-
-//   } catch (error) {
-//     setAlert({
-//       show: true,
-//       message: error.response?.data?.message || "Có lỗi xảy ra khi đặt tour",
-//       variant: "danger",
-//     })
-//     setShowConfirmation(false)
-//   }
-// }
 const handleConfirmation = (paymentMethod) => {
   setShowConfirmation(false)
 
