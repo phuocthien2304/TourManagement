@@ -308,10 +308,10 @@ const Tours = () => {
                       <Form.Select value={sortBy} onChange={handleSortChange}>
                         <option value="newest">Mới nhất</option>
                         <option value="oldest">Cũ nhất</option>
-                        <option value="price-low">Giá thấp → cao</option>
-                        <option value="price-high">Giá cao → thấp</option>
-                        <option value="name-asc">Tên A → Z</option>
-                        <option value="name-desc">Tên Z → A</option>
+                        <option value="price-low">Giá thấp đến cao</option>
+                        <option value="price-high">Giá cao đến thấp</option>
+                        <option value="name-asc">Tên A đến Z</option>
+                        <option value="name-desc">Tên Z đến A</option>
                         <option value="popular">Phổ biến</option>
                       </Form.Select>
                     </Form.Group>
@@ -346,17 +346,17 @@ const Tours = () => {
                           />
                           <Badge
                             bg={
-                              selectedCategory === "domestic"
+                              tour.category === "domestic"
                                 ? "success"
-                                : selectedCategory === "international"
+                                : tour.category === "international"
                                   ? "info"
                                   : "secondary"
                             }
                             className="position-absolute top-0 end-0 m-2"
                           >
-                            {selectedCategory === "domestic"
+                            {tour.category === "domestic"
                               ? "Trong nước"
-                              : selectedCategory === "international"
+                              : tour.category === "international"
                                 ? "Nước ngoài"
                                 : "Tour"}
                           </Badge>

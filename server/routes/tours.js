@@ -224,6 +224,35 @@ router.get("/", async (req, res) => {
   }
 })
 
+// GET /api/tours/admin – Admin view (hiện tất cả)
+router.get("/admin", employeeAuth, async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+
+    const query = {}
+    if (status) {
+      query.status = status // nếu admin muốn lọc theo status
+    }
+
+    const tours = await Tour.find(query)
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .sort({ createdAt: -1 })
+
+    const total = await Tour.countDocuments(query)
+
+    res.json({
+      tours,
+      totalPages: Math.ceil(total / limit),
+      currentPage: Number(page),
+      total,
+    })
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message })
+  }
+})
+
+
 // Get tour by ID
 router.get("/:id", async (req, res) => {
   try {
@@ -269,7 +298,7 @@ router.post("/", employeeAuth, upload.array("images", 5), async (req, res) => {
       category: req.body.category,
       region: req.body.region,
       country: req.body.country || "Việt Nam",
-      itinerary: req.body.itinerary,
+      itinerary: req.body.itinerary,  
       startDate: startDate,
       endDate: endDate,
       duration: duration,

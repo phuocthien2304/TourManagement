@@ -9,6 +9,31 @@ const api = axios.create({
   },
 })
 
+
+export const getNotifications = async () => {
+  try {
+    const res = await api.get('/notifications');
+    return res.data;
+  } catch (err) {
+    console.error("Lỗi khi lấy thông báo:", err.response?.data?.msg || err.message);
+    throw err;
+  }
+};
+
+/**
+ * Đánh dấu thông báo đã đọc
+ * @param {string} id ID của thông báo
+ */
+export const markNotificationAsRead = async (id) => {
+  try {
+    const res = await api.put(`/notifications/${id}/read`);
+    return res.data;
+  } catch (err) {
+    console.error("Lỗi khi đánh dấu đã đọc:", err.response?.data?.msg || err.message);
+    throw err;
+  }
+};
+
 // Request interceptor
 api.interceptors.request.use(
   (config) => {

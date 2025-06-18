@@ -7,7 +7,6 @@ import {
   Badge, Carousel, Modal, Image, FormCheck
 } from "react-bootstrap"
 import { useAuth } from "../contexts/AuthContext"
-import { CreditCard, Check, Copy, X } from "lucide-react"
 import api from "../services/api"
 
 function PaymentModal({ isOpen, onClose, paymentInfo, onConfirm }) {
@@ -353,17 +352,23 @@ const TourDetail = () => {
     setShowConfirmation(true)
   }
   const createBooking = async () => {
-  const response = await api.post("/bookings", {
-    tourId: id,
-    numberOfPeople: bookingData.numberOfPeople,
-    notes: bookingData.notes,
-  })
+      const response = await api.post("/bookings", {
+        tourId: id,
+        numberOfPeople: bookingData.numberOfPeople,
+        notes: bookingData.notes,
+      })
 
-  // Cập nhật số chỗ còn lại
-  setTour((prev) => ({
-    ...prev,
-    availableSlots: prev.availableSlots - bookingData.numberOfPeople,
-  }))
+      setAlert({
+        show: true,
+        message: "Đặt tour thành công! Vui lòng kiểm tra lịch sử đặt tour.",
+        variant: "success",
+      })
+
+      // Update available slots
+      setTour((prev) => ({
+        ...prev,
+        availableSlots: prev.availableSlots - bookingData.numberOfPeople,
+      }))
 }
 
 const handleConfirmation = (paymentMethod) => {
@@ -400,15 +405,15 @@ const handlePaymentConfirm = async () => {
     await createBooking()
     setShowPayment(false)
     setShowCompletion(true)
-  } catch (error) {
-    setAlert({
-      show: true,
-      message: error.response?.data?.message || "Có lỗi xảy ra khi đặt tour",
-      variant: "danger",
-    })
+    } catch (error) {
+      setAlert({
+        show: true,
+        message: error.response?.data?.message || "Có lỗi xảy ra khi đặt tour",
+        variant: "danger",
+      })
     setShowPayment(false)
+    }
   }
-}
 
 
   const handleImageUpload = (e) => {
@@ -422,6 +427,11 @@ const handlePaymentConfirm = async () => {
       return
     }
 
+      setReviewData((prev) => ({
+        ...prev,
+        images: [...prev.images, ...files], 
+      }))
+    
     files.forEach((file) => {
       const reader = new FileReader()
       reader.onload = (e) => {
@@ -432,26 +442,32 @@ const handlePaymentConfirm = async () => {
       }
       reader.readAsDataURL(file)
     })
-  }
+    }
+   
 
-  const removeImage = (index) => {
-    setReviewData((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }))
-  }
+    const removeImage = (index) => {
+      setReviewData((prev) => ({
+        ...prev,
+        images: prev.images.filter((_, i) => i !== index),
+      }))
+    }
 
   const submitReview = async (e) => {
     e.preventDefault()
+    const formData = new FormData()
+    formData.append("tourId", id)
+    formData.append("rating", reviewData.rating)
+    formData.append("comment", reviewData.comment)
+    formData.append("reviewerName", reviewData.reviewerName)
+    formData.append("reviewerPhone", reviewData.reviewerPhone)
 
-    try {
-      await api.post("/reviews", {
-        tourId: id,
-        rating: reviewData.rating,
-        comment: reviewData.comment,
-        images: reviewData.images,
-        reviewerName: reviewData.reviewerName,
-        reviewerPhone: reviewData.reviewerPhone,
+    reviewData.images.forEach((file) => {
+      formData.append("images", file) // đúng tên field theo multer backend
+    })
+
+      try {
+      await api.post("/reviews", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       })
 
       setAlert({
@@ -469,6 +485,7 @@ const handlePaymentConfirm = async () => {
         reviewerPhone: user?.phoneNumber || "",
       })
       setCanReview(false)
+      fetchReviews()
     } catch (error) {
       setAlert({
         show: true,
@@ -534,6 +551,7 @@ const handlePaymentConfirm = async () => {
 
       <Row>
         <Col lg={8}>
+          {/* Tour Images */}
           {tour.images && tour.images.length > 0 ? (
             <Carousel className="mb-4">
               {tour.images.map((image, index) => (
@@ -589,6 +607,7 @@ const handlePaymentConfirm = async () => {
             </Card.Body>
           </Card>
 
+          {/* Reviews */}
           <Card>
             <Card.Header className="d-flex justify-content-between align-items-center">
               <h4 className="mb-0">Đánh giá từ khách hàng</h4>
@@ -615,15 +634,14 @@ const handlePaymentConfirm = async () => {
                         {review.images.map((image, index) => (
                           <img
                             key={index}
-                            src={image || "/placeholder.svg"}
+                            src={`${backendUrl}${image}` || "/placeholder.svg"}
                             alt={`Review ${index + 1}`}
                             style={{ width: "100px", height: "100px", objectFit: "cover" }}
                             className="rounded"
                           />
                         ))}
                       </div>
-                    )}
-                    <small className="text-muted">Liên hệ: {review.reviewerPhone}</small>
+                    )}                  
                   </div>
                 ))
               ) : (
@@ -634,6 +652,7 @@ const handlePaymentConfirm = async () => {
         </Col>
 
         <Col lg={4}>
+          {/* Booking Form */}
           <Card className="sticky-top" style={{ top: "82px" }}>
             <Card.Header>
               <h4 className="mb-0">Đặt Tour</h4>
@@ -683,7 +702,7 @@ const handlePaymentConfirm = async () => {
                     <strong>Tổng tiền: {formatPrice(tour.price * bookingData.numberOfPeople)}</strong>
                   </div>
 
-                  <Button type="submit" variant="primary" size="lg" className="w-100" disabled={!user}>
+                  <Button type="submit" variant="primary" size="lg" className="w-100" disabled={!user || user?.role === "admin"}>
                     {user ? "Đặt Tour Ngay" : "Đăng nhập để đặt tour"}
                   </Button>
                 </Form>
@@ -729,27 +748,26 @@ const handlePaymentConfirm = async () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Đánh giá của bạn *</Form.Label>
-                  <div className="d-flex align-items-center gap-3">
-                    <Form.Select
-                      value={reviewData.rating}
-                      onChange={(e) =>
-                        setReviewData({
-                          ...reviewData,
-                          rating: Number.parseInt(e.target.value),
-                        })
-                      }
-                      style={{ width: "auto" }}
-                    >
-                      <option value={5}>5 sao</option>
-                      <option value={4}>4 sao</option>
-                      <option value={3}>3 sao</option>
-                      <option value={2}>2 sao</option>
-                      <option value={1}>1 sao</option>
-                    </Form.Select>
-                    <div className="d-flex align-items-center gap-2">
-                      {renderStars(reviewData.rating)}
-                      <span className="text-muted">({getRatingText(reviewData.rating)})</span>
-                    </div>
+                  <div className="d-flex align-items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <i
+                        key={star}
+                        className={`bi bi-star${star <= reviewData.rating ? "-fill" : ""} text-warning`}
+                        style={{ fontSize: "1.5rem", cursor: "pointer" }}
+                        onMouseEnter={() =>
+                          setReviewData((prev) => ({ ...prev, hoverRating: star }))
+                        }
+                        onMouseLeave={() =>
+                          setReviewData((prev) => ({ ...prev, hoverRating: undefined }))
+                        }
+                        onClick={() =>
+                          setReviewData((prev) => ({ ...prev, rating: star }))
+                        }
+                      ></i>
+                    ))}
+                    <span className="text-muted">
+                      ({getRatingText(reviewData.hoverRating || reviewData.rating)})
+                    </span>
                   </div>
                 </Form.Group>
 
@@ -796,25 +814,28 @@ const handlePaymentConfirm = async () => {
                   {reviewData.images.length > 0 && (
                     <div className="mt-2">
                       <div className="d-flex flex-wrap gap-2">
-                        {reviewData.images.map((image, index) => (
-                          <div key={index} className="position-relative">
-                            <img
-                              src={image || "/placeholder.svg"}
-                              alt={`Preview ${index + 1}`}
-                              style={{ width: "80px", height: "80px", objectFit: "cover" }}
-                              className="rounded"
-                            />
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              className="position-absolute top-0 end-0"
-                              style={{ padding: "2px 6px", fontSize: "12px" }}
-                              onClick={() => removeImage(index)}
-                            >
-                              ×
-                            </Button>
-                          </div>
-                        ))}
+                        {reviewData.images.map((file, index) => {
+                          const src = typeof file === "string" ? file : URL.createObjectURL(file)
+                          return (
+                            <div key={index} className="position-relative">
+                              <img
+                                src={src}
+                                alt={`Preview ${index + 1}`}
+                                style={{ width: "80px", height: "80px", objectFit: "cover" }}
+                                className="rounded"
+                              />
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                className="position-absolute top-0 end-0"
+                                style={{ padding: "2px 6px", fontSize: "12px" }}
+                                onClick={() => removeImage(index)}
+                              >
+                                ×
+                              </Button>
+                            </div>
+                          )
+})}
                       </div>
                     </div>
                   )}
@@ -859,5 +880,4 @@ const handlePaymentConfirm = async () => {
     </Container>
   )
 }
-
 export default TourDetail
