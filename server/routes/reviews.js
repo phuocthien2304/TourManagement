@@ -1,6 +1,7 @@
 const express = require("express");
 const Review = require("../models/Review");
 const Booking = require("../models/Booking");
+const upload = require("../middleware/upload");
 const { customerAuth, employeeAuth } = require("../middleware/auth");
 
 const router = express.Router();
@@ -11,10 +12,10 @@ const generateReviewId = () => {
 };
 
 // Create review (customer only)
-router.post("/", customerAuth, async (req, res) => {
+router.post("/", customerAuth, upload.array("images", 3),async (req, res) => {
   try {
-    const { tourId, rating, comment, images, reviewerName, reviewerPhone } = req.body;
-
+    const { tourId, rating, comment, reviewerName, reviewerPhone } = req.body;
+    const images = req.files ? req.files.map(file => `/uploads/${file.filename}`) : []
     // Check if user has completed booking for this tour
     const completedBooking = await Booking.findOne({
       customerId: req.user._id,
@@ -42,7 +43,7 @@ router.post("/", customerAuth, async (req, res) => {
       tourId,
       rating,
       comment,
-      images: images || [],
+      images: images,
       reviewerName,
       reviewerPhone,
     });
@@ -99,7 +100,7 @@ router.get("/can-review/:tourId", customerAuth, async (req, res) => {
 });
 
 // Get all reviews (employee only)
-router.get("/", employeeAuth, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
 

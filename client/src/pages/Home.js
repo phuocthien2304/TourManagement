@@ -136,7 +136,7 @@ const Home = () => {
               </div>
             ) : (
               <Row>
-                {featuredTours.map((tour) => (
+                {featuredTours.slice(0, 9).map((tour) => (
                   <Col md={4} key={tour._id} className="mb-4">
                     <Card className="h-100 shadow-sm">
                       <Card.Img
@@ -168,7 +168,13 @@ const Home = () => {
                     </Card>
                   </Col>
                 ))}
+                <div className="text-center mt-3">
+                  <Link to="/tours">
+                    <Button variant="outline-primary">Xem thêm</Button>
+                  </Link>
+              </div>
               </Row>
+              
             )}
           </Col>
         </Row>

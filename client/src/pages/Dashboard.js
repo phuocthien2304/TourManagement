@@ -18,6 +18,14 @@ const Dashboard = () => {
     address: user?.address || "",
   })
 
+  const [currentPage, setCurrentPage] = useState(1)
+  const bookingsPerPage = 10
+
+  const indexOfLastBooking = currentPage * bookingsPerPage
+  const indexOfFirstBooking = indexOfLastBooking - bookingsPerPage
+  const currentBookings = bookings.slice(indexOfFirstBooking, indexOfLastBooking)
+  const totalPages = Math.ceil(bookings.length / bookingsPerPage)
+
   useEffect(() => {
     if (activeTab === "bookings") {
       fetchBookings()
@@ -174,7 +182,7 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {bookings.map((booking) => (
+                {currentBookings.map((booking) => (
                   <tr key={booking._id}>
                     <td>{booking.bookingId}</td>
                     <td>{booking.tourId?.tourName}</td>
@@ -186,6 +194,30 @@ const Dashboard = () => {
                 ))}
               </tbody>
             </table>
+            <div className="d-flex justify-content-between align-items-center mt-3">
+  <div>
+    Trang {currentPage} / {totalPages}
+  </div>
+  <div>
+    <Button
+      variant="outline-secondary"
+      size="sm"
+      disabled={currentPage === 1}
+      onClick={() => setCurrentPage(prev => prev - 1)}
+      className="me-2"
+    >
+      Trang trước
+    </Button>
+    <Button
+      variant="outline-secondary"
+      size="sm"
+      disabled={currentPage === totalPages}
+      onClick={() => setCurrentPage(prev => prev + 1)}
+    >
+      Trang sau
+    </Button>
+  </div>
+</div>
           </div>
         ) : (
           <div className="text-center">
