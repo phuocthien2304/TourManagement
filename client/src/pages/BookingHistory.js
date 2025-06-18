@@ -12,6 +12,13 @@ const BookingHistory = () => {
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [alert, setAlert] = useState({ show: false, message: "", variant: "" })
+  const [currentPage, setCurrentPage] = useState(1)
+  const bookingsPerPage = 6
+
+  const indexOfLastBooking = currentPage * bookingsPerPage
+  const indexOfFirstBooking = indexOfLastBooking - bookingsPerPage
+  const currentBookings = bookings.slice(indexOfFirstBooking, indexOfLastBooking)
+  const totalPages = Math.ceil(bookings.length / bookingsPerPage)
 
   useEffect(() => {
     fetchBookings()
@@ -80,7 +87,8 @@ const BookingHistory = () => {
             </div>
           ) : bookings.length > 0 ? (
             <Row>
-              {bookings.map((booking) => (
+              
+              {currentBookings.map((booking) => (
                 <Col md={6} lg={4} key={booking._id} className="mb-4">
                   <Card className="h-100">
                     <Card.Body>
@@ -130,7 +138,31 @@ const BookingHistory = () => {
                   </Card>
                 </Col>
               ))}
+              <div className="d-flex justify-content-center mt-3">
+  <Button
+    variant="outline-secondary"
+    size="sm"
+    disabled={currentPage === 1}
+    onClick={() => setCurrentPage(prev => prev - 1)}
+    className="me-2"
+  >
+    Trang trước
+  </Button>
+
+  <span className="align-self-center">Trang {currentPage} / {totalPages}</span>
+
+  <Button
+    variant="outline-secondary"
+    size="sm"
+    disabled={currentPage === totalPages}
+    onClick={() => setCurrentPage(prev => prev + 1)}
+    className="ms-2"
+  >
+    Trang sau
+  </Button>
+</div>
             </Row>
+            
           ) : (
             <Card>
               <Card.Body className="text-center">

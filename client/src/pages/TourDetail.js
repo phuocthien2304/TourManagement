@@ -130,37 +130,35 @@ const TourDetail = () => {
       return
     }
 
-    // Convert files to base64 for preview (in real app, upload to server)
-    files.forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setReviewData((prev) => ({
-          ...prev,
-          images: [...prev.images, e.target.result],
-        }))
-      }
-      reader.readAsDataURL(file)
-    })
-  }
+      setReviewData((prev) => ({
+        ...prev,
+        images: [...prev.images, ...files], 
+      }))
+    }
 
-  const removeImage = (index) => {
-    setReviewData((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }))
-  }
+    const removeImage = (index) => {
+      setReviewData((prev) => ({
+        ...prev,
+        images: prev.images.filter((_, i) => i !== index),
+      }))
+    }
 
   const submitReview = async (e) => {
     e.preventDefault()
+    const formData = new FormData()
+    formData.append("tourId", id)
+    formData.append("rating", reviewData.rating)
+    formData.append("comment", reviewData.comment)
+    formData.append("reviewerName", reviewData.reviewerName)
+    formData.append("reviewerPhone", reviewData.reviewerPhone)
 
-    try {
-      await api.post("/reviews", {
-        tourId: id,
-        rating: reviewData.rating,
-        comment: reviewData.comment,
-        images: reviewData.images,
-        reviewerName: reviewData.reviewerName,
-        reviewerPhone: reviewData.reviewerPhone,
+    reviewData.images.forEach((file) => {
+      formData.append("images", file) // đúng tên field theo multer backend
+    })
+
+      try {
+      await api.post("/reviews", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       })
 
       setAlert({
@@ -178,6 +176,7 @@ const TourDetail = () => {
         reviewerPhone: user?.phoneNumber || "",
       })
       setCanReview(false)
+      fetchReviews()
     } catch (error) {
       setAlert({
         show: true,
@@ -339,15 +338,14 @@ const TourDetail = () => {
                         {review.images.map((image, index) => (
                           <img
                             key={index}
-                            src={image || "/placeholder.svg"}
+                            src={`${backendUrl}${image}` || "/placeholder.svg"}
                             alt={`Review ${index + 1}`}
                             style={{ width: "100px", height: "100px", objectFit: "cover" }}
                             className="rounded"
                           />
                         ))}
                       </div>
-                    )}
-                    <small className="text-muted">Liên hệ: {review.reviewerPhone}</small>
+                    )}                  
                   </div>
                 ))
               ) : (
@@ -408,7 +406,7 @@ const TourDetail = () => {
                     <strong>Tổng tiền: {formatPrice(tour.price * bookingData.numberOfPeople)}</strong>
                   </div>
 
-                  <Button type="submit" variant="primary" size="lg" className="w-100" disabled={!user}>
+                  <Button type="submit" variant="primary" size="lg" className="w-100" disabled={!user || user?.role === "admin"}>
                     {user ? "Đặt Tour Ngay" : "Đăng nhập để đặt tour"}
                   </Button>
                 </Form>
@@ -431,27 +429,26 @@ const TourDetail = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Đánh giá của bạn *</Form.Label>
-                  <div className="d-flex align-items-center gap-3">
-                    <Form.Select
-                      value={reviewData.rating}
-                      onChange={(e) =>
-                        setReviewData({
-                          ...reviewData,
-                          rating: Number.parseInt(e.target.value),
-                        })
-                      }
-                      style={{ width: "auto" }}
-                    >
-                      <option value={5}>5 sao</option>
-                      <option value={4}>4 sao</option>
-                      <option value={3}>3 sao</option>
-                      <option value={2}>2 sao</option>
-                      <option value={1}>1 sao</option>
-                    </Form.Select>
-                    <div className="d-flex align-items-center gap-2">
-                      {renderStars(reviewData.rating)}
-                      <span className="text-muted">({getRatingText(reviewData.rating)})</span>
-                    </div>
+                  <div className="d-flex align-items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <i
+                        key={star}
+                        className={`bi bi-star${star <= reviewData.rating ? "-fill" : ""} text-warning`}
+                        style={{ fontSize: "1.5rem", cursor: "pointer" }}
+                        onMouseEnter={() =>
+                          setReviewData((prev) => ({ ...prev, hoverRating: star }))
+                        }
+                        onMouseLeave={() =>
+                          setReviewData((prev) => ({ ...prev, hoverRating: undefined }))
+                        }
+                        onClick={() =>
+                          setReviewData((prev) => ({ ...prev, rating: star }))
+                        }
+                      ></i>
+                    ))}
+                    <span className="text-muted">
+                      ({getRatingText(reviewData.hoverRating || reviewData.rating)})
+                    </span>
                   </div>
                 </Form.Group>
 
@@ -498,25 +495,28 @@ const TourDetail = () => {
                   {reviewData.images.length > 0 && (
                     <div className="mt-2">
                       <div className="d-flex flex-wrap gap-2">
-                        {reviewData.images.map((image, index) => (
-                          <div key={index} className="position-relative">
-                            <img
-                              src={image || "/placeholder.svg"}
-                              alt={`Preview ${index + 1}`}
-                              style={{ width: "80px", height: "80px", objectFit: "cover" }}
-                              className="rounded"
-                            />
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              className="position-absolute top-0 end-0"
-                              style={{ padding: "2px 6px", fontSize: "12px" }}
-                              onClick={() => removeImage(index)}
-                            >
-                              ×
-                            </Button>
-                          </div>
-                        ))}
+                        {reviewData.images.map((file, index) => {
+                          const src = typeof file === "string" ? file : URL.createObjectURL(file)
+                          return (
+                            <div key={index} className="position-relative">
+                              <img
+                                src={src}
+                                alt={`Preview ${index + 1}`}
+                                style={{ width: "80px", height: "80px", objectFit: "cover" }}
+                                className="rounded"
+                              />
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                className="position-absolute top-0 end-0"
+                                style={{ padding: "2px 6px", fontSize: "12px" }}
+                                onClick={() => removeImage(index)}
+                              >
+                                ×
+                              </Button>
+                            </div>
+                          )
+})}
                       </div>
                     </div>
                   )}

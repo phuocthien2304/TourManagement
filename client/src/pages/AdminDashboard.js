@@ -166,7 +166,7 @@ const AdminDashboard = () => {
           reviews: reviewStats.data,
         })
       } else if (activeTab === "tours") {
-        const response = await api.get("/tours")
+        const response = await api.get("/tours/admin")
         setTours(response.data.tours)
       } else if (activeTab === "bookings") {
         const response = await api.get("/bookings")
