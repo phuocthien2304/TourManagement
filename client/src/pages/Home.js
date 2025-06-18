@@ -6,6 +6,7 @@ import { Link } from "react-router-dom"
 import api from "../services/api"
 
 const Home = () => {
+  const backendUrl = process.env.REACT_APP_API_URL || "http://localhost:5000"
   const [featuredTours, setFeaturedTours] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -140,7 +141,11 @@ const Home = () => {
                     <Card className="h-100 shadow-sm">
                       <Card.Img
                         variant="top"
-                        src={tour.images?.[0] || "/placeholder.svg?height=200&width=300"}
+                        src={
+                          tour.images?.[0]
+                            ? `${backendUrl}${tour.images[0]}`
+                            : "/placeholder.svg?height=200&width=300"
+                        }
                         style={{ height: "200px", objectFit: "cover" }}
                       />
                       <Card.Body className="d-flex flex-column">
