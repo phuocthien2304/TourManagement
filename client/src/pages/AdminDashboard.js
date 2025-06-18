@@ -36,52 +36,107 @@ import {
   FaInfoCircle,
 } from "react-icons/fa"
 import api from "../services/api"
+import { useSocket } from '../contexts/SocketContext'; // <-- Dùng useSocket
+import { useAuth } from '../contexts/AuthContext';     // <-- Dùng useAuth
+import { toast } from 'react-toastify';
 
-const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState("overview")
-  const [tours, setTours] = useState([])
-  const [bookings, setBookings] = useState([])
-  const [reviews, setReviews] = useState([])
-  const [statistics, setStatistics] = useState({})
-  const [loading, setLoading] = useState(true)
-  const [showTourModal, setShowTourModal] = useState(false)
-  const [editingTour, setEditingTour] = useState(null)
-  const [showNotificationModal, setShowNotificationModal] = useState(false)
-  const [notification, setNotification] = useState({
-    type: "success", // success, error, warning, info
-    title: "",
-    message: "",
-    icon: null,
-  })
-  const [tourData, setTourData] = useState({
-    tourName: "",
-    departure: "",
-    destination: "",
-    itinerary: "",
-    startDate: "",
-    endDate: "",
-    transportation: "",
-    price: "",
-    availableSlots: "",
-    totalSlots: "",
-    services: [],
-    images: [],
-    imagesToRemove: [],
-    category: "domestic",
-    region: "",
-    country: "Việt Nam",
-    difficulty: "easy",
-    tourType: "group",
-    status: "active",
-    featured: false,
-    highlights: [],
-    included: [],
-    excluded: [],
-  })
+const NewBookingToast = ({ notification, onUpdateStatus }) => (
+    <div>
+        <p><strong>Thông báo mới!</strong></p>
+        <p>{notification.data.message}</p>
+        <div style={{ marginTop: '10px' }}>
+            <Button variant="success" size="sm" onClick={() => onUpdateStatus(notification.data.bookingId, 'confirmed')} style={{ marginRight: '10px' }}>
+                Xác nhận
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => onUpdateStatus(notification.data.bookingId, 'cancelled')}>
+                Hủy
+            </Button>
+        </div>
+    </div>
+  );
 
-  useEffect(() => {
-    fetchData()
-  }, [activeTab])
+  const AdminDashboard = () => {
+      const socket = useSocket();
+      const { user } = useAuth();
+    
+      const [activeTab, setActiveTab] = useState("bookings") // Mặc định mở tab bookings
+      const [bookings, setBookings] = useState([])
+      const [loading, setLoading] = useState(true)
+      const [tours, setTours] = useState([])
+      const [reviews, setReviews] = useState([])
+      const [statistics, setStatistics] = useState({})
+      const [showTourModal, setShowTourModal] = useState(false)
+      const [editingTour, setEditingTour] = useState(null)
+      const [showNotificationModal, setShowNotificationModal] = useState(false)
+      const [notification, setNotification] = useState({ type: "success", title: "", message: "", icon: null })
+      const [tourData, setTourData] = useState({ tourName: "", departure: "", destination: "", itinerary: "", startDate: "", endDate: "", transportation: "", price: "", availableSlots: "", totalSlots: "", services: [], images: [], imagesToRemove: [], category: "domestic", region: "", country: "Việt Nam", difficulty: "easy", tourType: "group", status: "active", featured: false, highlights: [], included: [], excluded: [] })
+    
+      useEffect(() => {
+        fetchData();
+      }, [activeTab]);
+    
+      useEffect(() => {
+        // Chỉ lắng nghe sự kiện nếu là admin và đã kết nối socket
+        console.log("[CLIENT LOG]: User data:", user);
+        if (socket && user?.role === 'admin') {
+            const handleNotification = (notification) => {
+                if (notification.type === 'new_booking') {
+                    toast(
+                        <NewBookingToast 
+                            notification={notification}
+                            onUpdateStatus={handleBookingStatusUpdate}
+                        />, 
+                        { 
+                            toastId: notification.data.bookingId, // Dùng ID để tránh toast trùng lặp
+                            autoClose: false,
+                        }
+                    );
+                  // Tự động tải lại bảng khi có đơn mới
+                  if (activeTab === 'bookings') {
+                      fetchData();
+                  }
+                }
+            };
+            socket.on('getNotification', handleNotification);
+    
+            return () => {
+                socket.off('getNotification', handleNotification);
+            };
+        }
+      }, [socket, user, activeTab]);
+    
+      const fetchData = async () => {
+        try {
+          setLoading(true);
+          // Logic fetch data cho từng tab
+          if (activeTab === "bookings") {
+            const response = await api.get("/bookings");
+            setBookings(response.data.bookings);
+          } else if (activeTab === "tours") {
+            const response = await api.get("/tours");
+            setTours(response.data.tours);
+          } else if (activeTab === "reviews") {
+            const response = await api.get("/reviews");
+            setReviews(response.data.reviews);
+          } else if (activeTab === "overview") {
+            const [bookingStats, tourStats, reviewStats] = await Promise.all([
+              api.get("/statistics/bookings"),
+              api.get("/statistics/tours"),
+              api.get("/statistics/reviews"),
+            ]);
+            setStatistics({
+              bookings: bookingStats.data,
+              tours: tourStats.data,
+              reviews: reviewStats.data,
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching data:", error);
+          toast.error("Lỗi khi tải dữ liệu.");
+        } finally {
+          setLoading(false);
+        }
+      };
 
   const showNotification = (type, title, message) => {
     const icons = {
@@ -149,39 +204,6 @@ const AdminDashboard = () => {
     return true
   }
 
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-
-      if (activeTab === "overview") {
-        const [bookingStats, tourStats, reviewStats] = await Promise.all([
-          api.get("/statistics/bookings"),
-          api.get("/statistics/tours"),
-          api.get("/statistics/reviews"),
-        ])
-
-        setStatistics({
-          bookings: bookingStats.data,
-          tours: tourStats.data,
-          reviews: reviewStats.data,
-        })
-      } else if (activeTab === "tours") {
-        const response = await api.get("/tours/admin")
-        setTours(response.data.tours)
-      } else if (activeTab === "bookings") {
-        const response = await api.get("/bookings")
-        setBookings(response.data.bookings)
-      } else if (activeTab === "reviews") {
-        const response = await api.get("/reviews")
-        setReviews(response.data.reviews)
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error)
-      showNotification("error", "Lỗi tải dữ liệu", "Có lỗi xảy ra khi tải dữ liệu. Vui lòng thử lại.")
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleTourSubmit = async (e) => {
     e.preventDefault()
@@ -284,24 +306,22 @@ const AdminDashboard = () => {
     }
   }
 
-  const handleBookingStatusUpdate = async (booking, status) => {
-    try {
-      await api.put(`/bookings/${booking._id}/status`, { status })
-      const statusText = {
-        confirmed: "xác nhận",
-        cancelled: "hủy",
-        paid: "đánh dấu đã thanh toán",
-      }
-      showNotification(
-        "success",
-        "Cập nhật thành công",
-        `Đã ${statusText[status]} đơn đặt tour của ${booking.customerId?.fullName}`,
-      )
-      fetchData()
-    } catch (error) {
-      showNotification("error", "Lỗi cập nhật", "Có lỗi xảy ra khi cập nhật trạng thái đơn đặt tour.")
-    }
-  }
+    const handleBookingStatusUpdate = async (bookingId, status) => {
+        try {
+          await api.put(`/bookings/${bookingId}/status`, { status });
+          const statusText = {
+            confirmed: "xác nhận",
+            cancelled: "hủy",
+            paid: "đánh dấu đã thanh toán",
+          };
+    
+          toast.success(`Đã ${statusText[status]} đơn đặt tour.`);
+          toast.dismiss(bookingId); // Đóng toast tương ứng
+          fetchData(); // Tải lại dữ liệu để cập nhật bảng
+        } catch (error) {
+          toast.error("Lỗi khi cập nhật trạng thái đơn đặt tour.");
+        }
+      };
 
   const handleReviewStatusUpdate = async (review, status) => {
     try {
@@ -388,6 +408,7 @@ const AdminDashboard = () => {
       <FaStar key={index} className={index < rating ? "text-warning" : "text-muted"} />
     ))
   }
+  
 
   const getRegionOptions = () => {
     if (tourData.category === "domestic") {
@@ -427,21 +448,11 @@ const AdminDashboard = () => {
 
   return (
     <Container fluid className="py-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="h3 mb-0">Quản trị hệ thống</h1>
-          <p className="text-muted mb-0">Quản lý tours, đặt chỗ và đánh giá</p>
-        </div>
-      </div>
-
-      <Tabs activeKey={activeTab} onSelect={setActiveTab} className="mb-4 nav-pills">
-        <Tab
-          eventKey="overview"
-          title={
-            <>
-              <FaChartLine className="me-2" />
-              Tổng quan
-            </>
+      <h1 className="h3 mb-0">Quản trị hệ thống</h1>
+      <p className="text-muted mb-0">Quản lý tours, đặt chỗ và đánh giá</p>
+      
+      <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="mt-4 mb-4 nav-pills">
+        <Tab eventKey="overview" title={<><FaChartLine className="me-2" />Tổng quan</>
           }
         >
           {loading ? (
@@ -720,7 +731,7 @@ const AdminDashboard = () => {
                                 variant="outline-success"
                                 size="sm"
                                 className="me-2"
-                                onClick={() => handleBookingStatusUpdate(booking, "confirmed")}
+                                onClick={() => handleBookingStatusUpdate(booking._id, "confirmed")}
                               >
                                 <FaCheck className="me-1" />
                                 Xác nhận
@@ -728,7 +739,7 @@ const AdminDashboard = () => {
                               <Button
                                 variant="outline-danger"
                                 size="sm"
-                                onClick={() => handleBookingStatusUpdate(booking, "cancelled")}
+                                onClick={() => handleBookingStatusUpdate(booking._id, "cancelled")}
                               >
                                 <FaTimes className="me-1" />
                                 Hủy
@@ -739,7 +750,7 @@ const AdminDashboard = () => {
                             <Button
                               variant="outline-primary"
                               size="sm"
-                              onClick={() => handleBookingStatusUpdate(booking, "paid")}
+                              onClick={() => handleBookingStatusUpdate(booking._id, "paid")}
                             >
                               <FaDollarSign className="me-1" />
                               Đã thanh toán
