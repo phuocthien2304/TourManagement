@@ -364,17 +364,23 @@ const TourDetail = () => {
   //   }
   // }
   const createBooking = async () => {
-  const response = await api.post("/bookings", {
-    tourId: id,
-    numberOfPeople: bookingData.numberOfPeople,
-    notes: bookingData.notes,
-  })
+      const response = await api.post("/bookings", {
+        tourId: id,
+        numberOfPeople: bookingData.numberOfPeople,
+        notes: bookingData.notes,
+      })
 
-  // Cập nhật số chỗ còn lại
-  setTour((prev) => ({
-    ...prev,
-    availableSlots: prev.availableSlots - bookingData.numberOfPeople,
-  }))
+      setAlert({
+        show: true,
+        message: "Đặt tour thành công! Vui lòng kiểm tra lịch sử đặt tour.",
+        variant: "success",
+      })
+
+      // Update available slots
+      setTour((prev) => ({
+        ...prev,
+        availableSlots: prev.availableSlots - bookingData.numberOfPeople,
+      }))
 }
 
 //   const handleConfirmation = async (paymentMethod) => {
@@ -448,15 +454,15 @@ const handlePaymentConfirm = async () => {
     await createBooking()
     setShowPayment(false)
     setShowCompletion(true)
-  } catch (error) {
-    setAlert({
-      show: true,
-      message: error.response?.data?.message || "Có lỗi xảy ra khi đặt tour",
-      variant: "danger",
-    })
+    } catch (error) {
+      setAlert({
+        show: true,
+        message: error.response?.data?.message || "Có lỗi xảy ra khi đặt tour",
+        variant: "danger",
+      })
     setShowPayment(false)
+    }
   }
-}
 
 
   const handleImageUpload = (e) => {
@@ -474,7 +480,7 @@ const handlePaymentConfirm = async () => {
         ...prev,
         images: [...prev.images, ...files], 
       }))
-    }
+    
     files.forEach((file) => {
       const reader = new FileReader()
       reader.onload = (e) => {
@@ -485,7 +491,8 @@ const handlePaymentConfirm = async () => {
       }
       reader.readAsDataURL(file)
     })
-  }
+    }
+   
 
     const removeImage = (index) => {
       setReviewData((prev) => ({
@@ -593,6 +600,7 @@ const handlePaymentConfirm = async () => {
 
       <Row>
         <Col lg={8}>
+          {/* Tour Images */}
           {tour.images && tour.images.length > 0 ? (
             <Carousel className="mb-4">
               {tour.images.map((image, index) => (
@@ -648,6 +656,7 @@ const handlePaymentConfirm = async () => {
             </Card.Body>
           </Card>
 
+          {/* Reviews */}
           <Card>
             <Card.Header className="d-flex justify-content-between align-items-center">
               <h4 className="mb-0">Đánh giá từ khách hàng</h4>
@@ -692,6 +701,7 @@ const handlePaymentConfirm = async () => {
         </Col>
 
         <Col lg={4}>
+          {/* Booking Form */}
           <Card className="sticky-top" style={{ top: "82px" }}>
             <Card.Header>
               <h4 className="mb-0">Đặt Tour</h4>
@@ -918,4 +928,5 @@ const handlePaymentConfirm = async () => {
       </Modal>
     </Container>
   )
+}
 export default TourDetail

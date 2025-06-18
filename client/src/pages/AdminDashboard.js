@@ -447,7 +447,7 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
   )
 
   return (
-    <Container fluid className="py-4">
+    <Container className="py-4">
       <h1 className="h3 mb-0">Quản trị hệ thống</h1>
       <p className="text-muted mb-0">Quản lý tours, đặt chỗ và đánh giá</p>
       
