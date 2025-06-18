@@ -7,7 +7,6 @@ import {
   Badge, Carousel, Modal, Image, FormCheck
 } from "react-bootstrap"
 import { useAuth } from "../contexts/AuthContext"
-import { CreditCard, Check, Copy, X } from "lucide-react"
 import api from "../services/api"
 
 function PaymentModal({ isOpen, onClose, paymentInfo, onConfirm }) {

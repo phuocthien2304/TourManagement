@@ -1,98 +1,100 @@
 "use client"
 
-import React, { useContext, useState, useEffect, useRef } from 'react';
-import { Navbar, Nav, Container, Button, Dropdown, Badge } from "react-bootstrap"
+import { useState, useEffect, useRef } from "react"
+import { Navbar, Nav, Container, Button } from "react-bootstrap"
 import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
-import { useSocket } from "../contexts/SocketContext" // <-- Thêm hook socket
-import { toast } from 'react-toastify';             // <-- Thêm toast
-import { FaBell } from "react-icons/fa"; 
-import { getNotifications, markNotificationAsRead } from '../services/api';
-import './Navbar.css';
+import { useSocket } from "../contexts/SocketContext"
+import { toast } from "react-toastify"
+import { FaBell } from "react-icons/fa"
+import { getNotifications, markNotificationAsRead } from "../services/api"
+import "./Navbar.css"
 
 const NavigationBar = () => {
   const { user, logout } = useAuth()
-  const socket = useSocket();
+  const socket = useSocket()
   const navigate = useNavigate()
 
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const dropdownRef = useRef(null);
+  const [notifications, setNotifications] = useState([])
+  const [showDropdown, setShowDropdown] = useState(false)
+  const dropdownRef = useRef(null)
 
-  // const unreadCount = notifications.filter(n => !n.read).length;
+  // Calculate unread count from notifications array
+  const unreadCount = notifications.filter((n) => !n.read).length
 
+  // Fetch notifications when user logs in
   useEffect(() => {
     if (user) {
-        const fetchNotifications = async () => {
-            try {
-                const data = await getNotifications();
-                setNotifications(data);
-            } catch (error) {
-                console.error("Không thể tải thông báo.");
-            }
-        };
-        fetchNotifications();
-    } else {
-        setNotifications([]); // Clear notifications on logout
-    }
-}, [user]);
-
-
-  useEffect(() => {
-    // Chỉ lắng nghe nếu có socket, có user và user đó không phải admin
-    if (socket && user && user.role !== 'admin') {
-      const handleNotification = (notification) => {
-        // Chỉ xử lý các thông báo về cập nhật trạng thái booking
-        console.log("Received a notification:", notification);
-
-        if (notification.type === 'booking_status_update') {
-          // Hiển thị toast cho người dùng
-          toast.info(notification.data.message);
-          
-          // Thêm thông báo mới vào đầu danh sách
-          setNotifications(prev => [notification.data, ...prev]);
-          
-          // Tăng số lượng thông báo chưa đọc
-          setUnreadCount(prev => prev + 1);
+      const fetchNotifications = async () => {
+        try {
+          const data = await getNotifications()
+          setNotifications(data || []) // Ensure data is an array
+        } catch (error) {
+          console.error("Không thể tải thông báo:", error)
+          setNotifications([]) // Set empty array on error
         }
-      };
-
-      socket.on('getNotification', handleNotification);
-
-      // Hủy lắng nghe khi component unmount
-      return () => {
-        socket.off('getNotification', handleNotification);
-      };
+      }
+      fetchNotifications()
+    } else {
+      setNotifications([]) // Clear notifications on logout
     }
-  }, [socket, user]);
+  }, [user])
 
+  // Socket listener for real-time notifications
+  useEffect(() => {
+    if (socket && user) {
+      const handleNotification = (notification) => {
+        console.log("Received a notification:", notification)
+
+        if (notification.type === "booking_status_update" && notification.data) {
+          // Show toast notification
+          toast.info(notification.data.message)
+
+          // Add new notification to the beginning of the list
+          setNotifications((prev) => [notification.data, ...prev])
+        }
+      }
+
+      socket.on("getNotification", handleNotification)
+
+      // Cleanup listener on unmount
+      return () => {
+        socket.off("getNotification", handleNotification)
+      }
+    }
+  }, [socket, user])
+
+  // Handle clicking outside dropdown to close it
   useEffect(() => {
     function handleClickOutside(event) {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-            setShowDropdown(false);
-        }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-    };
-}, [dropdownRef]);
-
-const handleNotificationClick = async (notification) => {
-  try {
-      if (!notification.read) {
-          await markNotificationAsRead(notification._id);
-          setNotifications(prev =>
-              prev.map(n => n._id === notification._id ? { ...n, read: true } : n)
-          );
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false)
       }
-      setShowDropdown(false);
-      navigate(notification.link || '/');
-  } catch (error) {
-      console.error("Lỗi khi xử lý thông báo:", error);
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
+
+  const handleNotificationClick = async (notification) => {
+    try {
+      // Check if notification has a valid ID before trying to mark as read
+      if (notification && notification._id && !notification.read) {
+        await markNotificationAsRead(notification._id)
+        setNotifications((prev) => prev.map((n) => (n._id === notification._id ? { ...n, read: true } : n)))
+      }
+      setShowDropdown(false)
+
+      // Navigate to notification link if it exists
+      if (notification && notification.link) {
+        navigate(notification.link)
+      }
+    } catch (error) {
+      console.error("Lỗi khi xử lý thông báo:", error)
+      toast.error("Không thể xử lý thông báo")
+    }
   }
-};
 
   const handleLogout = () => {
     logout()
@@ -117,51 +119,70 @@ const handleNotificationClick = async (notification) => {
             </Nav.Link>
           </Nav>
 
-          <Nav>
+          <Nav className="align-items-center">
             {user ? (
               <>
+                {/* Role-based navigation */}
+                {user.role === "customer" ? (
+                  <Nav.Link as={Link} to="/bookings">
+                    Lịch sử Booking
+                  </Nav.Link>
+                ) : (
+                  <Nav.Link as={Link} to="/#">
+                  </Nav.Link>
+                )}
 
-{user.role === 'customer' ? (
-                            <Link to="/bookings">Lịch sử Booking</Link>
-                        ) : (
-                            <Link to="/dashboard">Dashboard</Link>
-                        )}
-                        
-                        {/* Notification Bell */}
-                        <div className="notification-wrapper" ref={dropdownRef}>
-                            <button onClick={() => setShowDropdown(!showDropdown)} className="notification-bell">
-                                🔔
-                                {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
-                            </button>
-                            {showDropdown && (
-                                <div className="notification-dropdown">
-                                    {notifications.length > 0 ? (
-                                        notifications.map(n => (
-                                            <div 
-                                                key={n._id} 
-                                                className={`notification-item ${n.read ? 'read' : 'unread'}`}
-                                                onClick={() => handleNotificationClick(n)}
-                                            >
-                                                <p>{n.message}</p>
-                                                <small>{new Date(n.createdAt).toLocaleString()}</small>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="notification-item">Không có thông báo.</div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
+                {/* Admin link */}
                 {user.role === "admin" && (
                   <Nav.Link as={Link} to="/admin">
                     Quản trị
                   </Nav.Link>
                 )}
-                <Nav.Link as={Link} to="/bookings">
-                  Lịch sử đặt tour
+
+                {/* Notification Bell */}
+                <div className="notification-wrapper me-3" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowDropdown(!showDropdown)}
+                    className="notification-bell"
+                    aria-label="Thông báo"
+                  >
+                    <FaBell size={20} />
+                    {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+                  </button>
+                  {showDropdown && (
+                    <div className="notification-dropdown">
+                      <div className="notification-header">
+                        <h6>Thông báo</h6>
+                        {unreadCount > 0 && <small>{unreadCount} chưa đọc</small>}
+                      </div>
+                      <div className="notification-list">
+                        {notifications.length > 0 ? (
+                          notifications.slice(0, 10).map((n, index) => (
+                            <div
+                              key={n._id || index}
+                              className={`notification-item ${n.read ? "read" : "unread"}`}
+                              onClick={() => handleNotificationClick(n)}
+                            >
+                              <p className="notification-message">{n.message}</p>
+                              <small className="notification-time">
+                                {n.createdAt ? new Date(n.createdAt).toLocaleString("vi-VN") : "Vừa xong"}
+                              </small>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="notification-item no-notifications">Không có thông báo.</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* User greeting */}
+                <Nav.Link disabled className="text-light">
+                  Xin chào, {user.fullName}
                 </Nav.Link>
-                <Nav.Link as={Link} to="/dashboard">Xin chào, {user.fullName}</Nav.Link>
+
+                {/* Logout button */}
                 <Button variant="outline-light" size="sm" onClick={handleLogout}>
                   Đăng xuất
                 </Button>

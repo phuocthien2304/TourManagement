@@ -41,41 +41,41 @@ import { useAuth } from '../contexts/AuthContext';     // <-- Dùng useAuth
 import { toast } from 'react-toastify';
 
 const NewBookingToast = ({ notification, onUpdateStatus }) => (
-    <div>
-        <p><strong>Thông báo mới!</strong></p>
-        <p>{notification.data.message}</p>
-        <div style={{ marginTop: '10px' }}>
-            <Button variant="success" size="sm" onClick={() => onUpdateStatus(notification.data.bookingId, 'confirmed')} style={{ marginRight: '10px' }}>
-                Xác nhận
-            </Button>
-            <Button variant="danger" size="sm" onClick={() => onUpdateStatus(notification.data.bookingId, 'cancelled')}>
-                Hủy
-            </Button>
-        </div>
-    </div>
+   <div>
+     <p><strong>Thông báo mới!</strong></p>
+     <p>{notification.data.message}</p>
+     <div style={{ marginTop: '10px' }}>
+       <Button variant="success" size="sm" onClick={() => onUpdateStatus(notification.data.bookingId, 'confirmed')} style={{ marginRight: '10px' }}>
+         Xác nhận
+       </Button>
+       <Button variant="danger" size="sm" onClick={() => onUpdateStatus(notification.data.bookingId, 'cancelled')}>
+         Hủy
+       </Button>
+     </div>
+   </div>
   );
 
   const AdminDashboard = () => {
-      const socket = useSocket();
-      const { user } = useAuth();
+     const socket = useSocket();
+     const { user } = useAuth();
     
-      const [activeTab, setActiveTab] = useState("bookings") // Mặc định mở tab bookings
-      const [bookings, setBookings] = useState([])
-      const [loading, setLoading] = useState(true)
-      const [tours, setTours] = useState([])
-      const [reviews, setReviews] = useState([])
-      const [statistics, setStatistics] = useState({})
-      const [showTourModal, setShowTourModal] = useState(false)
-      const [editingTour, setEditingTour] = useState(null)
-      const [showNotificationModal, setShowNotificationModal] = useState(false)
-      const [notification, setNotification] = useState({ type: "success", title: "", message: "", icon: null })
-      const [tourData, setTourData] = useState({ tourName: "", departure: "", destination: "", itinerary: "", startDate: "", endDate: "", transportation: "", price: "", availableSlots: "", totalSlots: "", services: [], images: [], imagesToRemove: [], category: "domestic", region: "", country: "Việt Nam", difficulty: "easy", tourType: "group", status: "active", featured: false, highlights: [], included: [], excluded: [] })
+     const [activeTab, setActiveTab] = useState("overview") // Mặc định mở tab bookings
+     const [bookings, setBookings] = useState([])
+     const [loading, setLoading] = useState(true)
+     const [tours, setTours] = useState([])
+     const [reviews, setReviews] = useState([])
+     const [statistics, setStatistics] = useState({})
+     const [showTourModal, setShowTourModal] = useState(false)
+     const [editingTour, setEditingTour] = useState(null)
+     const [showNotificationModal, setShowNotificationModal] = useState(false)
+     const [notification, setNotification] = useState({ type: "success", title: "", message: "", icon: null })
+     const [tourData, setTourData] = useState({ tourName: "", departure: "", destination: "", itinerary: "", startDate: "", endDate: "", transportation: "", price: "", availableSlots: "", totalSlots: "", services: [], images: [], imagesToRemove: [], category: "domestic", region: "", country: "Việt Nam", difficulty: "easy", tourType: "group", status: "active", featured: false, highlights: [], included: [], excluded: [] })
     
-      useEffect(() => {
-        fetchData();
-      }, [activeTab]);
+     useEffect(() => {
+      fetchData();
+     }, [activeTab]);
     
-      useEffect(() => {
+     useEffect(() => {
       if (socket && (user?.role === 'admin' || user?.role === 'employee') && activeTab === 'bookings') {
         socket.on('getNotification', (notification) => {
           if (notification.type === 'new_booking') {
@@ -88,9 +88,9 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
       }
     }, [socket, user, activeTab]);
     
-      const fetchData = async () => {
-        try {
-          setLoading(true);
+     const fetchData = async () => {
+      try {
+       setLoading(true);
           // Logic fetch data cho từng tab
           if (activeTab === "bookings") {
             const response = await api.get("/bookings");
@@ -113,13 +113,13 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
               reviews: reviewStats.data,
             });
           }
-        } catch (error) {
-          console.error("Error fetching data:", error);
+      } catch (error) {
+       console.error("Error fetching data:", error);
           toast.error("Lỗi khi tải dữ liệu.");
-        } finally {
-          setLoading(false);
-        }
-      };
+      } finally {
+       setLoading(false);
+      }
+     };
 
   const showNotification = (type, title, message) => {
     const icons = {
@@ -289,22 +289,22 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
     }
   }
 
-    const handleBookingStatusUpdate = async (bookingId, status) => {
-        try {
-          await api.put(`/bookings/${bookingId}/status`, { status });
-          const statusText = {
-            confirmed: "xác nhận",
-            cancelled: "hủy",
-            paid: "đánh dấu đã thanh toán",
-          };
+   const handleBookingStatusUpdate = async (bookingId, status) => {
+      try {
+       await api.put(`/bookings/${bookingId}/status`, { status });
+       const statusText = {
+        confirmed: "xác nhận",
+        cancelled: "hủy",
+        paid: "đánh dấu đã thanh toán",
+       };
     
           toast.success(`Đã ${statusText[status]} đơn đặt tour.`);
           toast.dismiss(bookingId); // Đóng toast tương ứng
-          fetchData(); // Tải lại dữ liệu để cập nhật bảng
-        } catch (error) {
+       fetchData(); // Tải lại dữ liệu để cập nhật bảng
+      } catch (error) {
           toast.error("Lỗi khi cập nhật trạng thái đơn đặt tour.");
-        }
-      };
+      }
+     };
 
   const handleReviewStatusUpdate = async (review, status) => {
     try {
