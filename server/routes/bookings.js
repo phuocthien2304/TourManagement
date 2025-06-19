@@ -50,7 +50,7 @@ router.post("/", customerAuth, async (req, res) => {
           senderModel: "Customer",
           type: "new_booking",
           message: `Khách hàng ${req.user.fullName} vừa đặt tour "${tour.tourName}".`,
-          link: `/admin/bookings`,
+          link: `/admin?tab=bookings`,
         })
         await notification.save()
         console.log("[SERVER LOG]: Notification saved for admin:", admin._id)
@@ -161,7 +161,7 @@ router.put("/:id/status", employeeAuth, async (req, res) => {
           senderModel: "Employee",
           type: "booking_confirmation",
           message: `Booking cho tour "${booking.tourId.tourName}" của bạn đã được xác nhận.`,
-          link: "/booking-history",
+          link: "/bookings",
         })
         await notification.save()
         console.log("[SERVER LOG]: Notification saved for customer:", customerId)

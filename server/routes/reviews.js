@@ -3,6 +3,7 @@ const Review = require("../models/Review");
 const Booking = require("../models/Booking");
 const upload = require("../middleware/upload");
 const { customerAuth, employeeAuth } = require("../middleware/auth");
+const mongoose = require("mongoose");
 
 const router = express.Router();
 
@@ -52,6 +53,34 @@ router.post("/", customerAuth, upload.array("images", 3),async (req, res) => {
     await review.populate(["customerId", "tourId"]);
 
     res.status(201).json(review);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+router.get("/average/:tourId", async (req, res) => {
+  try {
+    const { tourId } = req.params;
+    const result = await Review.aggregate([
+      { $match: { tourId: new mongoose.Types.ObjectId(tourId) } },
+      {
+        $group: {
+          _id: "$tourId",
+          averageRating: { $avg: "$rating" },
+          totalReviews: { $sum: 1 },
+        },
+      },
+    ]);
+
+    if (result.length === 0) {
+      return res.status(404).json({ message: "Chưa có đánh giá cho tour này" });
+    }
+
+    res.json({
+      tourId: result[0]._id,
+      averageRating: Math.round(result[0].averageRating * 10) / 10, // làm tròn 1 chữ số thập phân
+      totalReviews: result[0].totalReviews,
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }

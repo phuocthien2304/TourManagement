@@ -178,7 +178,7 @@ const NavigationBar = () => {
                 </div>
 
                 {/* User greeting */}
-                <Nav.Link disabled className="text-light">
+                <Nav.Link as={Link} to="/dashboard" className="text-light">
                   Xin chào, {user.fullName}
                 </Nav.Link>
 
