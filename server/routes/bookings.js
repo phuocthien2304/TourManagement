@@ -110,9 +110,6 @@ router.put("/:id/status", employeeAuth, async (req, res) => {
         await tour.save();
       }
     }
-
-    // <-- SỬA LẠI: Gửi thông báo đến khách hàng cụ thể -->
-    // Lấy khách hàng từ booking.customerId
     const customer = booking.customerId;
     if (customer) {
       const receiver = req.getUser(customer._id.toString()); // Dùng req.getUser

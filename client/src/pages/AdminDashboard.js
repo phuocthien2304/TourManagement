@@ -113,7 +113,7 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
             const response = await api.get("/bookings");
             setBookings(response.data.bookings);
           } else if (activeTab === "tours") {
-            const response = await api.get("/tours");
+            const response = await api.get("/tours/admin");
             setTours(response.data.tours);
           } else if (activeTab === "reviews") {
             const response = await api.get("/reviews");
@@ -523,7 +523,7 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
                 <Col md={4}>
                   <Card className="shadow-sm border-0">
                     <Card.Header className="bg-white border-bottom">
-                      <h5 className="mb-0">Thống kê nhanh</h5>
+                      <h5 className="mb-0">Thống kê đặt Tour</h5>
                     </Card.Header>
                     <Card.Body>
                       <div className="mb-3">
@@ -1168,21 +1168,22 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
                   />
                 </Form.Group>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Dịch vụ không bao gồm (mỗi dịch vụ một dòng)</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    value={tourData.excluded.join("\n")}
-                    onChange={(e) =>
-                      setTourData({
-                        ...tourData,
-                        excluded: e.target.value.split("\n").filter((s) => s.trim() !== ""),
-                      })
-                    }
-                    placeholder="Ví dụ:&#10;Vé máy bay quốc tế&#10;Chi phí cá nhân&#10;Bảo hiểm du lịch"
-                  />
-                </Form.Group>
+               <Form.Group className="mb-3">
+  <Form.Label>Dịch vụ không bao gồm (mỗi dịch vụ một dòng)</Form.Label>
+  <Form.Control
+  as="textarea"
+  rows={3}
+  value={tourData.excluded.join("\n")}
+  onChange={(e) =>
+    setTourData({
+      ...tourData,
+      excluded: e.target.value.split("\n").filter((s) => s.trim() !== ""),
+    })
+  }
+  placeholder={`Ví dụ:\nVé máy bay quốc tế\nChi phí cá nhân\nBảo hiểm du lịch`}
+  style={{ whiteSpace: "pre-wrap !important" }}
+/>
+</Form.Group>
 
                 <Form.Group className="mb-3">
                   <Form.Label>Dịch vụ khác (mỗi dịch vụ một dòng)</Form.Label>

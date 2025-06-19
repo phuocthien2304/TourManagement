@@ -16,7 +16,7 @@ const Home = () => {
 
   const fetchFeaturedTours = async () => {
     try {
-      const response = await api.get("/tours?limit=6")
+      const response = await api.get("/tours?limit=9")
       setFeaturedTours(response.data.tours)
     } catch (error) {
       console.error("Error fetching tours:", error)
@@ -125,59 +125,68 @@ const Home = () => {
 
       <Container>
         {/* Featured Tours Section */}
-        <Row className="mb-5">
-          <Col>
-            <h2 className="text-center mb-4">Tours Nổi Bật</h2>
-            {loading ? (
-              <div className="text-center">
-                <div className="spinner-border" role="status">
-                  <span className="visually-hidden">Loading...</span>
-                </div>
-              </div>
-            ) : (
-              <Row>
-                {featuredTours.slice(0, 9).map((tour) => (
-                  <Col md={4} key={tour._id} className="mb-4">
-                    <Card className="h-100 shadow-sm">
-                      <Card.Img
-                        variant="top"
-                        src={
-                          tour.images?.[0]
-                            ? `${backendUrl}${tour.images[0]}`
-                            : "/placeholder.svg?height=200&width=300"
-                        }
-                        style={{ height: "200px", objectFit: "cover" }}
-                      />
-                      <Card.Body className="d-flex flex-column">
-                        <Card.Title>{tour.tourName}</Card.Title>
-                        <Card.Text className="text-muted">
-                          <small>
-                            <i className="bi bi-geo-alt"></i> {tour.departure} → {tour.destination}
-                          </small>
-                        </Card.Text>
-                        <Card.Text className="flex-grow-1">{tour.itinerary.substring(0, 100)}...</Card.Text>
-                        <div className="d-flex justify-content-between align-items-center">
-                          <span className="h5 text-primary mb-0">{formatPrice(tour.price)}</span>
-                          <Link to={`/tours/${tour._id}`}>
-                            <Button variant="primary" size="sm">
-                              Xem chi tiết
-                            </Button>
-                          </Link>
-                        </div>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                ))}
-                <div className="text-center mt-3">
-                  <Link to="/tours">
-                    <Button variant="outline-primary">Xem thêm</Button>
-                  </Link>
-              </div>
-              </Row>
-              
-            )}
-          </Col>
+       <Row className="mb-5">
+  <Col>
+    <h2 className="text-center mb-4">Tours Nổi Bật</h2>
+    {loading ? (
+      <div className="text-center">
+        <div className="spinner-border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    ) : (
+      <>
+        <Row>
+          {featuredTours
+            .filter((tour) => tour.featured === true)
+            .slice(0, 9)
+            .map((tour) => (
+              <Col md={4} key={tour._id} className="mb-4">
+                <Card className="h-100 shadow-sm">
+                  <Card.Img
+                    variant="top"
+                    src={
+                      tour.images?.[0]
+                        ? `${backendUrl}${tour.images[0]}`
+                        : "/placeholder.svg?height=200&width=300"
+                    }
+                    style={{ height: "200px", objectFit: "cover" }}
+                  />
+                  <Card.Body className="d-flex flex-column">
+                    <Card.Title>{tour.tourName}</Card.Title>
+                    <Card.Text className="text-muted">
+                      <small>
+                        <i className="bi bi-geo-alt"></i> {tour.departure} → {tour.destination}
+                      </small>
+                    </Card.Text>
+                    <Card.Text className="flex-grow-1">
+                      {tour.itinerary.substring(0, 100)}...
+                    </Card.Text>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <span className="h5 text-primary mb-0">{formatPrice(tour.price)}</span>
+                      <Link to={`/tours/${tour._id}`}>
+                        <Button variant="primary" size="sm">
+                          Xem chi tiết
+                        </Button>
+                      </Link>
+                    </div>
+                  </Card.Body>
+                </Card>
+              </Col>
+            ))}
         </Row>
+
+        {featuredTours.filter((tour) => tour.featured === true).length >= 9 && (
+          <div className="text-center mt-3">
+            <Link to="/tours">
+              <Button variant="outline-primary">Xem thêm</Button>
+            </Link>
+          </div>
+        )}
+      </>
+    )}
+  </Col>
+</Row>
 
         {/* Features Section */}
         <Row className="mb-5">

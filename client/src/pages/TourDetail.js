@@ -9,6 +9,7 @@ import {
 import { useAuth } from "../contexts/AuthContext"
 import { CreditCard, Check, Copy, X } from "lucide-react"
 import api from "../services/api"
+import { Link } from "react-router-dom"
 
 function PaymentModal({ isOpen, onClose, paymentInfo, onConfirm }) {
   const [copied, setCopied] = useState({ accountNumber: false, amount: false, content: false, all: false })
@@ -232,7 +233,10 @@ const TourDetail = () => {
   const [showPayment, setShowPayment] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [showCompletion, setShowCompletion] = useState(false)
-  
+    const [relatedTours, setRelatedTours] = useState([])
+    const [reviewStats, setReviewStats] = useState({ averageRating: 0, totalReviews: 0 })
+
+
   const [bookingData, setBookingData] = useState({
     numberOfPeople: 1,
     notes: "",
@@ -256,6 +260,12 @@ const TourDetail = () => {
     }
   }, [id, user])
 
+   useEffect(() => {
+    if (tour) {
+      fetchRelatedTours()
+    }
+  }, [tour])
+
   useEffect(() => {
     if (user) {
       setReviewData((prev) => ({
@@ -265,6 +275,18 @@ const TourDetail = () => {
       }))
     }
   }, [user])
+  useEffect(() => {
+  const fetchReviewStats = async () => {
+    try {
+      const res = await api.get(`/reviews/average/${id}`)
+      setReviewStats(res.data)
+    } catch (error) {
+      console.error("Lỗi khi lấy thống kê đánh giá:", error)
+    }
+  }
+
+  fetchReviewStats()
+}, [id])
 
   const fetchTourDetail = async () => {
     try {
@@ -571,6 +593,18 @@ const handlePaymentConfirm = async () => {
     }
     return ratingTexts[rating] || ""
   }
+  const fetchRelatedTours = async () => {
+    try {
+      if (tour?.destination) {
+        const response = await api.get(`/tours?destination=${encodeURIComponent(tour.destination)}&limit=4`)
+        // Filter out current tour
+        const filtered = response.data.tours.filter((t) => t._id !== id)
+        setRelatedTours(filtered.slice(0, 3))
+      }
+    } catch (error) {
+      console.error("Error fetching related tours:", error)
+    }
+  }
 
   if (loading) {
     return (
@@ -658,8 +692,17 @@ const handlePaymentConfirm = async () => {
 
           {/* Reviews */}
           <Card>
-            <Card.Header className="d-flex justify-content-between align-items-center">
-              <h4 className="mb-0">Đánh giá từ khách hàng</h4>
+             <Card.Header className="d-flex justify-content-between align-items-center">
+              <div>
+                <h5 className="mb-0">
+                  Đánh giá từ khách hàng{" "}
+                  {reviewStats.totalReviews > 0 && (
+                    <small className="text-muted ms-2"><i class="bi bi-star-fill text-warning"></i> 
+                    {reviewStats.averageRating} / 5 ({reviewStats.totalReviews} đánh giá)
+                    </small>
+                  )}
+                </h5>
+              </div>
               {user && canReview && (
                 <Button variant="primary" size="sm" onClick={() => setShowReviewModal(true)}>
                   Viết đánh giá
@@ -690,6 +733,7 @@ const handlePaymentConfirm = async () => {
                           />
                         ))}
                       </div>
+                      
                     )}                  
                   </div>
                 ))
@@ -698,7 +742,8 @@ const handlePaymentConfirm = async () => {
               )}
             </Card.Body>
           </Card>
-        </Col>
+          </Col>
+        
 
         <Col lg={4}>
           {/* Booking Form */}
@@ -751,7 +796,7 @@ const handlePaymentConfirm = async () => {
                     <strong>Tổng tiền: {formatPrice(tour.price * bookingData.numberOfPeople)}</strong>
                   </div>
 
-                  <Button type="submit" variant="primary" size="lg" className="w-100" disabled={!user || user?.role === "admin"}>
+                  <Button type="submit" variant="primary" size="lg" className="w-100" disabled={ user?.role === "admin"}>
                     {user ? "Đặt Tour Ngay" : "Đăng nhập để đặt tour"}
                   </Button>
                 </Form>
@@ -762,6 +807,84 @@ const handlePaymentConfirm = async () => {
           </Card>
         </Col>
       </Row>
+      
+    <Col>
+      {/* Related Tours Section */}
+          {relatedTours.length > 0 && (
+            <Card>
+              <Card.Header>
+                <h4 className="mb-0">Tour liên quan cùng điểm đến</h4>
+                <small className="text-muted">Các tour khác đến {tour.destination}</small>
+              </Card.Header>
+              <Card.Body>
+                <Row>
+                  {relatedTours.map((relatedTour) => (
+                    <Col md={4} key={relatedTour._id} className="mb-3">
+                      <Card className="h-100 shadow-sm">
+                        <div style={{ height: "150px", overflow: "hidden" }}>
+                          <Card.Img
+                            variant="top"
+                            src={
+                              relatedTour.images && relatedTour.images.length > 0
+                                ? `${backendUrl}${relatedTour.images[0]}`
+                                : "/placeholder.svg?height=150&width=200"
+                            }
+                            style={{ height: "150px", objectFit: "cover" }}
+                          />
+                        </div>
+                        <Card.Body className="d-flex flex-column">
+                          <Card.Title className="h6 mb-2" style={{ minHeight: "2.5rem" }}>
+                            {relatedTour.tourName}
+                          </Card.Title>
+                          <div className="mb-2">
+                            <small className="text-muted">
+                              <i className="bi bi-geo-alt me-1"></i>
+                              {relatedTour.departure} → {relatedTour.destination}
+                            </small>
+                          </div>
+                          <div className="mb-2">
+                            <small className="text-muted">
+                              <i className="bi bi-calendar me-1"></i>
+                              {formatDate(relatedTour.startDate)}
+                            </small>
+                          </div>
+                          <div className="mt-auto">
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                              <span className="fw-bold text-primary">{formatPrice(relatedTour.price)}</span>
+                              <Badge bg="info" className="small">
+                                {relatedTour.availableSlots} chỗ
+                              </Badge>
+                            </div>
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              className="w-100"
+                              onClick={() => window.location.href = `/tours/${relatedTour._id}`}
+                            >
+                              Xem chi tiết
+                            </Button>
+                          </div>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+
+                {relatedTours.length >= 3 && (
+                  <div className="text-center mt-3">
+                    <Button
+                      variant="outline-primary"
+                      onClick={() => navigate(`/tours?destination=${encodeURIComponent(tour.destination)}`)}
+                    >
+                      Xem tất cả tour đến {tour.destination}
+                    </Button>
+                  </div>
+                )}
+              </Card.Body>
+            </Card>
+          )}
+        </Col>
+        
 
       <BookingConfirmationModal
         isOpen={showConfirmation}
@@ -926,7 +1049,7 @@ const handlePaymentConfirm = async () => {
           </Modal.Footer>
         </Form>
       </Modal>
-    </Container>
-  )
+    </Container> 
+  ) 
 }
 export default TourDetail
