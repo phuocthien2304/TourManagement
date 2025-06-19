@@ -39,7 +39,48 @@ export const SocketProvider = ({ children }) => {
       });
 
       // Lắng nghe getNotification cho admin/employee
-      if (user.role === 'admin' || user.role === 'employee') {
+      if (user.role === 'admin') {
+        socket.on('getNotification', (notification) => {
+          console.log("[CLIENT LOG]: Received getNotification:", notification);
+          if (notification.type === 'new_booking') {
+            toast.info(
+              <div>
+                <p><strong>Thông báo mới!</strong></p>
+                <p>{notification.data.message}</p>
+              </div>,
+              {
+                toastId: notification.data.bookingId,
+                autoClose: 5000,
+              }
+            );
+          }
+        });
+      }
+    } else if (socket && !user) {
+      console.log("[CLIENT LOG]: No user, clearing socket user data.");
+      socket.emit("removeUser", socket.id);
+    }
+
+    // Cleanup sự kiện getNotification
+    return () => {
+      if (socket) {
+        socket.off('getNotification');
+      }
+    };
+  }, [socket, user]);
+
+  useEffect(() => {
+    if (socket && user) {
+      console.log("[CLIENT LOG]: User available:", { userId: user.id, role: user.role });
+      socket.emit("addUser", { userId: user.id, role: user.role });
+
+      socket.on("connect", () => {
+        console.log("[CLIENT LOG]: Socket connected! Emitting 'addUser' to server.");
+        socket.emit("addUser", { userId: user.id, role: user.role });
+      });
+
+      // Lắng nghe getNotification cho admin/employee
+      if (user.role === 'customer') {
         socket.on('getNotification', (notification) => {
           console.log("[CLIENT LOG]: Received getNotification:", notification);
           if (notification.type === 'new_booking') {

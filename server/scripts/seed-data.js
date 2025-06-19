@@ -411,7 +411,7 @@ console.log('--- Bắt đầu tạo dữ liệu cho Notification ---');
           senderModel: 'Customer',
           type: 'new_review',
           message: `${sampleCustomer.fullName} đã để lại một đánh giá mới.`,
-          link: '/admin/reviews'
+          link: '/admin?tab=reviews'
         }
       ];
 
