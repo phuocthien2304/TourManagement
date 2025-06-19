@@ -1,50 +1,118 @@
-"use client"
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { toast } from 'react-toastify';
 
 const SocketContext = createContext();
 
 export const useSocket = () => {
-    return useContext(SocketContext);
+  return useContext(SocketContext);
 };
 
 export const SocketProvider = ({ children }) => {
-    const [socket, setSocket] = useState(null);
-    const { user } = useAuth(); // Lấy thông tin người dùng từ AuthContext
+  const [socket, setSocket] = useState(null);
+  const { user } = useAuth();
 
-    useEffect(() => {
-        // Chỉ tạo kết nối mới khi có đối tượng user (tức là đã đăng nhập)
-        if (user) {
-            // Kết nối tới server backend
-            const newSocket = io("http://localhost:5000");
+  useEffect(() => {
+    const newSocket = io("http://localhost:5000", {
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
 
-            // Lắng nghe sự kiện 'connect' để đảm bảo kết nối thành công
-            newSocket.on('connect', () => {
-                // Chỉ emit MỘT LẦN ở đây sau khi đã kết nối
-                newSocket.emit("addUser", { userId: user.id, role: user.role });
-            });
+    setSocket(newSocket);
 
-            setSocket(newSocket);
+    return () => {
+      console.log("[CLIENT LOG]: Disconnecting socket on unmount.");
+      newSocket.disconnect();
+    };
+  }, []);
 
-            // Cleanup khi component unmount hoặc user thay đổi (logout)
-            return () => {
-                console.log("[CLIENT LOG]: Disconnecting socket.");
-                newSocket.disconnect();
-            };
-        } else {
-            // Nếu không có user (đã logout), đảm bảo socket cũ bị ngắt kết nối
-            if (socket) {
-                socket.disconnect();
-                setSocket(null);
-            }
-        }
-    }, [user]); // Effect này chỉ chạy lại khi user thay đổi (login/logout)
+  useEffect(() => {
+    if (socket && user) {
+      console.log("[CLIENT LOG]: User available:", { userId: user.id, role: user.role });
+      socket.emit("addUser", { userId: user.id, role: user.role });
 
-    return (
-        <SocketContext.Provider value={socket}>
-            {children}
-        </SocketContext.Provider>
-    );
+      socket.on("connect", () => {
+        console.log("[CLIENT LOG]: Socket connected! Emitting 'addUser' to server.");
+        socket.emit("addUser", { userId: user.id, role: user.role });
+      });
+
+      // Lắng nghe getNotification cho admin/employee
+      if (user.role === 'admin') {
+        socket.on('getNotification', (notification) => {
+          console.log("[CLIENT LOG]: Received getNotification:", notification);
+          if (notification.type === 'new_booking') {
+            toast.info(
+              <div>
+                <p><strong>Thông báo mới!</strong></p>
+                <p>{notification.data.message}</p>
+              </div>,
+              {
+                toastId: notification.data.bookingId,
+                autoClose: 5000,
+              }
+            );
+          }
+        });
+      }
+    } else if (socket && !user) {
+      console.log("[CLIENT LOG]: No user, clearing socket user data.");
+      socket.emit("removeUser", socket.id);
+    }
+
+    // Cleanup sự kiện getNotification
+    return () => {
+      if (socket) {
+        socket.off('getNotification');
+      }
+    };
+  }, [socket, user]);
+
+  useEffect(() => {
+    if (socket && user) {
+      console.log("[CLIENT LOG]: User available:", { userId: user.id, role: user.role });
+      socket.emit("addUser", { userId: user.id, role: user.role });
+
+      socket.on("connect", () => {
+        console.log("[CLIENT LOG]: Socket connected! Emitting 'addUser' to server.");
+        socket.emit("addUser", { userId: user.id, role: user.role });
+      });
+
+      // Lắng nghe getNotification cho admin/employee
+      if (user.role === 'customer') {
+        socket.on('getNotification', (notification) => {
+          console.log("[CLIENT LOG]: Received getNotification:", notification);
+          if (notification.type === 'new_booking') {
+            toast.info(
+              <div>
+                <p><strong>Thông báo mới!</strong></p>
+                <p>{notification.data.message}</p>
+              </div>,
+              {
+                toastId: notification.data.bookingId,
+                autoClose: 5000,
+              }
+            );
+          }
+        });
+      }
+    } else if (socket && !user) {
+      console.log("[CLIENT LOG]: No user, clearing socket user data.");
+      socket.emit("removeUser", socket.id);
+    }
+
+    // Cleanup sự kiện getNotification
+    return () => {
+      if (socket) {
+        socket.off('getNotification');
+      }
+    };
+  }, [socket, user]);
+
+  return (
+    <SocketContext.Provider value={socket}>
+      {children}
+    </SocketContext.Provider>
+  );
 };

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
 import {
   Container,
   Row,
@@ -16,6 +17,8 @@ import {
   Image,
   Spinner,
   ProgressBar,
+  Pagination,
+  InputGroup,
 } from "react-bootstrap"
 import {
   FaPlus,
@@ -34,109 +37,369 @@ import {
   FaCheckCircle,
   FaTimesCircle,
   FaInfoCircle,
+  FaSearch,
+  FaFilter,
 } from "react-icons/fa"
 import api from "../services/api"
-import { useSocket } from '../contexts/SocketContext'; // <-- Dùng useSocket
-import { useAuth } from '../contexts/AuthContext';     // <-- Dùng useAuth
-import { toast } from 'react-toastify';
+import { useSocket } from "../contexts/SocketContext"
+import { useAuth } from "../contexts/AuthContext"
+import { toast } from "react-toastify"
 
 const NewBookingToast = ({ notification, onUpdateStatus }) => (
-    <div>
-        <p><strong>Thông báo mới!</strong></p>
-        <p>{notification.data.message}</p>
-        <div style={{ marginTop: '10px' }}>
-            <Button variant="success" size="sm" onClick={() => onUpdateStatus(notification.data.bookingId, 'confirmed')} style={{ marginRight: '10px' }}>
-                Xác nhận
-            </Button>
-            <Button variant="danger" size="sm" onClick={() => onUpdateStatus(notification.data.bookingId, 'cancelled')}>
-                Hủy
-            </Button>
-        </div>
-    </div>
-  );
+  <div>
+    <p>
+      <strong>Thông báo mới!</strong>
+    </p>
+    <p>{notification.data.message}</p>
+    <div style={{ marginTop: "10px" }}>
+      <Button
+        variant="success"
+        size="sm"
+        onClick={() => onUpdateStatus(notification.data.bookingId, "confirmed")}
+        style={{ marginRight: "10px" }}
+      >
+        Xác nhận
+      </Button>
+      <Button variant="danger" size="sm" onClick={() => onUpdateStatus(notification.data.bookingId, "cancelled")}>
+        Hủy
+      </Button>
+    </div>
+  </div>
+)
 
-  const AdminDashboard = () => {
-      const socket = useSocket();
-      const { user } = useAuth();
-    
-      const [activeTab, setActiveTab] = useState("bookings") // Mặc định mở tab bookings
-      const [bookings, setBookings] = useState([])
-      const [loading, setLoading] = useState(true)
-      const [tours, setTours] = useState([])
-      const [reviews, setReviews] = useState([])
-      const [statistics, setStatistics] = useState({})
-      const [showTourModal, setShowTourModal] = useState(false)
-      const [editingTour, setEditingTour] = useState(null)
-      const [showNotificationModal, setShowNotificationModal] = useState(false)
-      const [notification, setNotification] = useState({ type: "success", title: "", message: "", icon: null })
-      const [tourData, setTourData] = useState({ tourName: "", departure: "", destination: "", itinerary: "", startDate: "", endDate: "", transportation: "", price: "", availableSlots: "", totalSlots: "", services: [], images: [], imagesToRemove: [], category: "domestic", region: "", country: "Việt Nam", difficulty: "easy", tourType: "group", status: "active", featured: false, highlights: [], included: [], excluded: [] })
-    
-      useEffect(() => {
-        fetchData();
-      }, [activeTab]);
-    
-      useEffect(() => {
-        // Chỉ lắng nghe sự kiện nếu là admin và đã kết nối socket
-        console.log("[CLIENT LOG]: User data:", user);
-        if (socket && user?.role === 'admin') {
-            const handleNotification = (notification) => {
-                if (notification.type === 'new_booking') {
-                    toast(
-                        <NewBookingToast 
-                            notification={notification}
-                            onUpdateStatus={handleBookingStatusUpdate}
-                        />, 
-                        { 
-                            toastId: notification.data.bookingId, // Dùng ID để tránh toast trùng lặp
-                            autoClose: false,
-                        }
-                    );
-                  // Tự động tải lại bảng khi có đơn mới
-                  if (activeTab === 'bookings') {
-                      fetchData();
-                  }
-                }
-            };
-            socket.on('getNotification', handleNotification);
-    
-            return () => {
-                socket.off('getNotification', handleNotification);
-            };
-        }
-      }, [socket, user, activeTab]);
-    
-      const fetchData = async () => {
-        try {
-          setLoading(true);
-          // Logic fetch data cho từng tab
-          if (activeTab === "bookings") {
-            const response = await api.get("/bookings");
-            setBookings(response.data.bookings);
-          } else if (activeTab === "tours") {
-            const response = await api.get("/tours/admin");
-            setTours(response.data.tours);
-          } else if (activeTab === "reviews") {
-            const response = await api.get("/reviews");
-            setReviews(response.data.reviews);
-          } else if (activeTab === "overview") {
-            const [bookingStats, tourStats, reviewStats] = await Promise.all([
-              api.get("/statistics/bookings"),
-              api.get("/statistics/tours"),
-              api.get("/statistics/reviews"),
-            ]);
-            setStatistics({
-              bookings: bookingStats.data,
-              tours: tourStats.data,
-              reviews: reviewStats.data,
-            });
-          }
-        } catch (error) {
-          console.error("Error fetching data:", error);
-          toast.error("Lỗi khi tải dữ liệu.");
-        } finally {
-          setLoading(false);
-        }
-      };
+
+const AdminDashboard = () => {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const socket = useSocket()
+  const { user } = useAuth()
+
+  const getTabFromURL = () => {
+    const params = new URLSearchParams(location.search)
+    return params.get("tab") || "overview"
+  }
+
+  const [activeTab, setActiveTab] = useState(getTabFromURL)
+  const [bookings, setBookings] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [tours, setTours] = useState([])
+  const [reviews, setReviews] = useState([])
+  const [statistics, setStatistics] = useState({})
+  const [showTourModal, setShowTourModal] = useState(false)
+  const [editingTour, setEditingTour] = useState(null)
+  const [showNotificationModal, setShowNotificationModal] = useState(false)
+  const [notification, setNotification] = useState({ type: "success", title: "", message: "", icon: null })
+  const [tourData, setTourData] = useState({
+    tourName: "",
+    departure: "",
+    destination: "",
+    itinerary: "",
+    startDate: "",
+    endDate: "",
+    transportation: "",
+    price: "",
+    availableSlots: "",
+    totalSlots: "",
+    services: [],
+    images: [],
+    imagesToRemove: [],
+    category: "domestic",
+    region: "",
+    country: "Việt Nam",
+    difficulty: "easy",
+    tourType: "group",
+    status: "active",
+    featured: false,
+    highlights: [],
+    included: [],
+    excluded: [],
+  })
+
+  // Pagination states
+  const [tourPagination, setTourPagination] = useState({
+    currentPage: 1,
+    itemsPerPage: 10,
+    totalItems: 0,
+    totalPages: 0,
+  })
+
+  const [bookingPagination, setBookingPagination] = useState({
+    currentPage: 1,
+    itemsPerPage: 10,
+    totalItems: 0,
+    totalPages: 0,
+  })
+
+  const [reviewPagination, setReviewPagination] = useState({
+    currentPage: 1,
+    itemsPerPage: 10,
+    totalItems: 0,
+    totalPages: 0,
+  })
+
+  // Filter states
+  const [tourFilter, setTourFilter] = useState({
+    status: "",
+    category: "",
+    keyword: "",
+    region: "",
+    featured: "",
+  })
+
+  const [bookingFilter, setBookingFilter] = useState({
+    status: "",
+    keyword: "",
+    dateFrom: "",
+    dateTo: "",
+  })
+
+  const [reviewFilter, setReviewFilter] = useState({
+    status: "",
+    keyword: "",
+    rating: "",
+    dateFrom: "",
+    dateTo: "",
+  })
+
+  // Filtered and paginated data
+  const [filteredTours, setFilteredTours] = useState([])
+  const [filteredBookings, setFilteredBookings] = useState([])
+  const [filteredReviews, setFilteredReviews] = useState([])
+
+  const handleTabSelect = (selectedTab) => {
+    setActiveTab(selectedTab)
+    const params = new URLSearchParams(location.search)
+    params.set("tab", selectedTab)
+    navigate(`${location.pathname}?${params.toString()}`, { replace: true })
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [activeTab])
+
+  useEffect(() => {
+    if (socket && (user?.role === "admin" || user?.role === "employee") && activeTab === "bookings") {
+      socket.on("getNotification", (notification) => {
+        if (notification.type === "new_booking") {
+          fetchData()
+        }
+      })
+      return () => {
+        socket.off("getNotification")
+      }
+    }
+  }, [socket, user, activeTab])
+
+  // Filter and pagination effects
+  useEffect(() => {
+    if (activeTab === "tours") {
+      applyTourFilters()
+    }
+  }, [tours, tourFilter, tourPagination.currentPage])
+
+  useEffect(() => {
+    if (activeTab === "bookings") {
+      applyBookingFilters()
+    }
+  }, [bookings, bookingFilter, bookingPagination.currentPage])
+
+  useEffect(() => {
+    if (activeTab === "reviews") {
+      applyReviewFilters()
+    }
+  }, [reviews, reviewFilter, reviewPagination.currentPage])
+
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      if (activeTab === "bookings") {
+        const response = await api.get("/bookings")
+        setBookings(response.data.bookings)
+      } else if (activeTab === "tours") {
+        const response = await api.get("/tours/admin")
+        setTours(response.data.tours)
+      } else if (activeTab === "reviews") {
+        const response = await api.get("/reviews")
+        setReviews(response.data.reviews)
+      } else if (activeTab === "overview") {
+        const [bookingStats, tourStats, reviewStats] = await Promise.all([
+          api.get("/statistics/bookings"),
+          api.get("/statistics/tours"),
+          api.get("/statistics/reviews"),
+        ])
+        setStatistics({
+          bookings: bookingStats.data,
+          tours: tourStats.data,
+          reviews: reviewStats.data,
+        })
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error)
+      toast.error("Lỗi khi tải dữ liệu.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Tour filtering and pagination
+  const applyTourFilters = () => {
+    let filtered = [...tours]
+
+    // Apply filters
+    if (tourFilter.keyword) {
+      filtered = filtered.filter(
+        (tour) =>
+          tour.tourName.toLowerCase().includes(tourFilter.keyword.toLowerCase()) ||
+          tour.destination.toLowerCase().includes(tourFilter.keyword.toLowerCase()) ||
+          tour.departure.toLowerCase().includes(tourFilter.keyword.toLowerCase()),
+      )
+    }
+
+    if (tourFilter.status) {
+      filtered = filtered.filter((tour) => tour.status === tourFilter.status)
+    }
+
+    if (tourFilter.category) {
+      filtered = filtered.filter((tour) => tour.category === tourFilter.category)
+    }
+
+    if (tourFilter.region) {
+      filtered = filtered.filter((tour) => tour.region === tourFilter.region)
+    }
+
+    if (tourFilter.featured !== "") {
+      filtered = filtered.filter((tour) => tour.featured === (tourFilter.featured === "true"))
+    }
+
+    // Update pagination
+    const totalItems = filtered.length
+    const totalPages = Math.ceil(totalItems / tourPagination.itemsPerPage)
+    const startIndex = (tourPagination.currentPage - 1) * tourPagination.itemsPerPage
+    const endIndex = startIndex + tourPagination.itemsPerPage
+
+    setTourPagination((prev) => ({
+      ...prev,
+      totalItems,
+      totalPages,
+    }))
+
+    setFilteredTours(filtered.slice(startIndex, endIndex))
+  }
+
+  // Booking filtering and pagination
+  const applyBookingFilters = () => {
+    let filtered = [...bookings]
+
+    // Apply filters
+    if (bookingFilter.keyword) {
+      filtered = filtered.filter(
+        (booking) =>
+          booking.bookingId.toLowerCase().includes(bookingFilter.keyword.toLowerCase()) ||
+          booking.customerId?.fullName.toLowerCase().includes(bookingFilter.keyword.toLowerCase()) ||
+          booking.tourId?.tourName.toLowerCase().includes(bookingFilter.keyword.toLowerCase()),
+      )
+    }
+
+    if (bookingFilter.status) {
+      filtered = filtered.filter((booking) => booking.status === bookingFilter.status)
+    }
+
+    if (bookingFilter.dateFrom) {
+      filtered = filtered.filter((booking) => new Date(booking.bookingDate) >= new Date(bookingFilter.dateFrom))
+    }
+
+    if (bookingFilter.dateTo) {
+      filtered = filtered.filter((booking) => new Date(booking.bookingDate) <= new Date(bookingFilter.dateTo))
+    }
+
+    // Update pagination
+    const totalItems = filtered.length
+    const totalPages = Math.ceil(totalItems / bookingPagination.itemsPerPage)
+    const startIndex = (bookingPagination.currentPage - 1) * bookingPagination.itemsPerPage
+    const endIndex = startIndex + bookingPagination.itemsPerPage
+
+    setBookingPagination((prev) => ({
+      ...prev,
+      totalItems,
+      totalPages,
+    }))
+
+    setFilteredBookings(filtered.slice(startIndex, endIndex))
+  }
+
+  // Review filtering and pagination
+  const applyReviewFilters = () => {
+    let filtered = [...reviews]
+
+    // Apply filters
+    if (reviewFilter.keyword) {
+      filtered = filtered.filter(
+        (review) =>
+          review.customerId?.fullName.toLowerCase().includes(reviewFilter.keyword.toLowerCase()) ||
+          review.tourId?.tourName.toLowerCase().includes(reviewFilter.keyword.toLowerCase()) ||
+          review.comment.toLowerCase().includes(reviewFilter.keyword.toLowerCase()),
+      )
+    }
+
+    if (reviewFilter.status) {
+      filtered = filtered.filter((review) => review.status === reviewFilter.status)
+    }
+
+    if (reviewFilter.rating) {
+      filtered = filtered.filter((review) => review.rating === Number.parseInt(reviewFilter.rating))
+    }
+
+    if (reviewFilter.dateFrom) {
+      filtered = filtered.filter((review) => new Date(review.reviewDate) >= new Date(reviewFilter.dateFrom))
+    }
+
+    if (reviewFilter.dateTo) {
+      filtered = filtered.filter((review) => new Date(review.reviewDate) <= new Date(reviewFilter.dateTo))
+    }
+
+    // Update pagination
+    const totalItems = filtered.length
+    const totalPages = Math.ceil(totalItems / reviewPagination.itemsPerPage)
+    const startIndex = (reviewPagination.currentPage - 1) * reviewPagination.itemsPerPage
+    const endIndex = startIndex + reviewPagination.itemsPerPage
+
+    setReviewPagination((prev) => ({
+      ...prev,
+      totalItems,
+      totalPages,
+    }))
+
+    setFilteredReviews(filtered.slice(startIndex, endIndex))
+  }
+
+  // Reset filters
+  const resetTourFilters = () => {
+    setTourFilter({ status: "", category: "", keyword: "", region: "", featured: "" })
+    setTourPagination((prev) => ({ ...prev, currentPage: 1 }))
+  }
+
+  const resetBookingFilters = () => {
+    setBookingFilter({ status: "", keyword: "", dateFrom: "", dateTo: "" })
+    setBookingPagination((prev) => ({ ...prev, currentPage: 1 }))
+  }
+
+  const resetReviewFilters = () => {
+    setReviewFilter({ status: "", keyword: "", rating: "", dateFrom: "", dateTo: "" })
+    setReviewPagination((prev) => ({ ...prev, currentPage: 1 }))
+  }
+
+  // Pagination handlers
+  const handleTourPageChange = (pageNumber) => {
+    setTourPagination((prev) => ({ ...prev, currentPage: pageNumber }))
+  }
+
+  const handleBookingPageChange = (pageNumber) => {
+    setBookingPagination((prev) => ({ ...prev, currentPage: pageNumber }))
+  }
+
+  const handleReviewPageChange = (pageNumber) => {
+    setReviewPagination((prev) => ({ ...prev, currentPage: pageNumber }))
+  }
 
   const showNotification = (type, title, message) => {
     const icons = {
@@ -203,7 +466,6 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
 
     return true
   }
-
 
   const handleTourSubmit = async (e) => {
     e.preventDefault()
@@ -294,7 +556,6 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
   }
 
   const handleDeleteTour = async (tour) => {
-    // Custom confirmation modal would be better, but using native for now
     if (window.confirm(`Bạn có chắc chắn muốn xóa tour "${tour.tourName}"?`)) {
       try {
         await api.delete(`/tours/${tour._id}`)
@@ -306,22 +567,22 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
     }
   }
 
-    const handleBookingStatusUpdate = async (bookingId, status) => {
-        try {
-          await api.put(`/bookings/${bookingId}/status`, { status });
-          const statusText = {
-            confirmed: "xác nhận",
-            cancelled: "hủy",
-            paid: "đánh dấu đã thanh toán",
-          };
-    
-          toast.success(`Đã ${statusText[status]} đơn đặt tour.`);
-          toast.dismiss(bookingId); // Đóng toast tương ứng
-          fetchData(); // Tải lại dữ liệu để cập nhật bảng
-        } catch (error) {
-          toast.error("Lỗi khi cập nhật trạng thái đơn đặt tour.");
-        }
-      };
+  const handleBookingStatusUpdate = async (bookingId, status) => {
+    try {
+      await api.put(`/bookings/${bookingId}/status`, { status })
+      const statusText = {
+        confirmed: "xác nhận",
+        cancelled: "hủy",
+        paid: "đánh dấu đã thanh toán",
+      }
+
+      toast.success(`Đã ${statusText[status]} đơn đặt tour.`)
+      toast.dismiss(bookingId)
+      fetchData()
+    } catch (error) {
+      toast.error("Lỗi khi cập nhật trạng thái đơn đặt tour.")
+    }
+  }
 
   const handleReviewStatusUpdate = async (review, status) => {
     try {
@@ -408,7 +669,6 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
       <FaStar key={index} className={index < rating ? "text-warning" : "text-muted"} />
     ))
   }
-  
 
   const getRegionOptions = () => {
     if (tourData.category === "domestic") {
@@ -446,13 +706,87 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
     </Card>
   )
 
+  // Render pagination component
+  const renderPagination = (pagination, onPageChange) => {
+    if (pagination.totalPages <= 1) return null
+
+    const items = []
+    const maxVisiblePages = 5
+    let startPage = Math.max(1, pagination.currentPage - Math.floor(maxVisiblePages / 2))
+    const endPage = Math.min(pagination.totalPages, startPage + maxVisiblePages - 1)
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1)
+    }
+
+    // First page
+    if (startPage > 1) {
+      items.push(
+        <Pagination.Item key={1} onClick={() => onPageChange(1)}>
+          1
+        </Pagination.Item>,
+      )
+      if (startPage > 2) {
+        items.push(<Pagination.Ellipsis key="start-ellipsis" />)
+      }
+    }
+
+    // Visible pages
+    for (let page = startPage; page <= endPage; page++) {
+      items.push(
+        <Pagination.Item key={page} active={page === pagination.currentPage} onClick={() => onPageChange(page)}>
+          {page}
+        </Pagination.Item>,
+      )
+    }
+
+    // Last page
+    if (endPage < pagination.totalPages) {
+      if (endPage < pagination.totalPages - 1) {
+        items.push(<Pagination.Ellipsis key="end-ellipsis" />)
+      }
+      items.push(
+        <Pagination.Item key={pagination.totalPages} onClick={() => onPageChange(pagination.totalPages)}>
+          {pagination.totalPages}
+        </Pagination.Item>,
+      )
+    }
+
+    return (
+      <div className="d-flex justify-content-between align-items-center mt-3">
+        <div className="text-muted">
+          Hiển thị {(pagination.currentPage - 1) * pagination.itemsPerPage + 1} -{" "}
+          {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} trong tổng số{" "}
+          {pagination.totalItems} mục
+        </div>
+        <Pagination className="mb-0">
+          <Pagination.Prev
+            disabled={pagination.currentPage === 1}
+            onClick={() => onPageChange(pagination.currentPage - 1)}
+          />
+          {items}
+          <Pagination.Next
+            disabled={pagination.currentPage === pagination.totalPages}
+            onClick={() => onPageChange(pagination.currentPage + 1)}
+          />
+        </Pagination>
+      </div>
+    )
+  }
+
   return (
-    <Container className="py-4">
+    <Container className="py-4" style={{marginTop:"62px"}}>
       <h1 className="h3 mb-0">Quản trị hệ thống</h1>
       <p className="text-muted mb-0">Quản lý tours, đặt chỗ và đánh giá</p>
-      
-      <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="mt-4 mb-4 nav-pills">
-        <Tab eventKey="overview" title={<><FaChartLine className="me-2" />Tổng quan</>
+
+      <Tabs activeKey={activeTab} onSelect={handleTabSelect} className="mt-4 mb-4 nav-pills">
+        <Tab
+          eventKey="overview"
+          title={
+            <>
+              <FaChartLine className="me-2" />
+              Tổng quan
+            </>
           }
         >
           {loading ? (
@@ -589,6 +923,100 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
             </Button>
           </div>
 
+          {/* Tour Filters */}
+          <Card className="mb-4">
+            <Card.Header className="bg-light">
+              <div className="d-flex justify-content-between align-items-center">
+                <h6 className="mb-0">
+                  <FaFilter className="me-2" />
+                  Bộ lọc
+                </h6>
+                <Button variant="outline-secondary" size="sm" onClick={resetTourFilters}>
+                  Xóa bộ lọc
+                </Button>
+              </div>
+            </Card.Header>
+            <Card.Body>
+              <Row>
+                <Col md={3}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Tìm kiếm</Form.Label>
+                    <InputGroup>
+                      <InputGroup.Text>
+                        <FaSearch />
+                      </InputGroup.Text>
+                      <Form.Control
+                        type="text"
+                        placeholder="Tên tour, điểm đến..."
+                        value={tourFilter.keyword}
+                        onChange={(e) => setTourFilter({ ...tourFilter, keyword: e.target.value })}
+                      />
+                    </InputGroup>
+                  </Form.Group>
+                </Col>
+                <Col md={2}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Trạng thái</Form.Label>
+                    <Form.Select
+                      value={tourFilter.status}
+                      onChange={(e) => setTourFilter({ ...tourFilter, status: e.target.value })}
+                    >
+                      <option value="">Tất cả</option>
+                      <option value="active">Hoạt động</option>
+                      <option value="inactive">Không hoạt động</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={2}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Danh mục</Form.Label>
+                    <Form.Select
+                      value={tourFilter.category}
+                      onChange={(e) => setTourFilter({ ...tourFilter, category: e.target.value })}
+                    >
+                      <option value="">Tất cả</option>
+                      <option value="domestic">Trong nước</option>
+                      <option value="international">Nước ngoài</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Vùng miền</Form.Label>
+                    <Form.Select
+                      value={tourFilter.region}
+                      onChange={(e) => setTourFilter({ ...tourFilter, region: e.target.value })}
+                    >
+                      <option value="">Tất cả</option>
+                      <option value="mien-bac">Miền Bắc</option>
+                      <option value="mien-trung">Miền Trung</option>
+                      <option value="mien-nam">Miền Nam</option>
+                      <option value="dong-nam-a">Đông Nam Á</option>
+                      <option value="dong-a">Đông Á</option>
+                      <option value="chau-au">Châu Âu</option>
+                      <option value="chau-my">Châu Mỹ</option>
+                      <option value="chau-uc">Châu Úc</option>
+                      <option value="chau-phi">Châu Phi</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={2}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Tour nổi bật</Form.Label>
+                    <Form.Select
+                      value={tourFilter.featured}
+                      onChange={(e) => setTourFilter({ ...tourFilter, featured: e.target.value })}
+                    >
+                      <option value="">Tất cả</option>
+                      <option value="true">Có</option>
+                      <option value="false">Không</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
+
           {loading ? (
             <div className="text-center py-5">
               <Spinner animation="border" variant="primary" />
@@ -611,7 +1039,7 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
                     </tr>
                   </thead>
                   <tbody>
-                    {tours.map((tour) => (
+                    {filteredTours.map((tour) => (
                       <tr key={tour._id}>
                         <td className="px-4 py-3">
                           <div>
@@ -667,6 +1095,7 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
                     ))}
                   </tbody>
                 </Table>
+                {renderPagination(tourPagination, handleTourPageChange)}
               </Card.Body>
             </Card>
           )}
@@ -685,6 +1114,76 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
             <h4 className="mb-0">Danh sách Đặt Tour</h4>
             <p className="text-muted mb-0">Quản lý tất cả các đơn đặt tour</p>
           </div>
+
+          {/* Booking Filters */}
+          <Card className="mb-4">
+            <Card.Header className="bg-light">
+              <div className="d-flex justify-content-between align-items-center">
+                <h6 className="mb-0">
+                  <FaFilter className="me-2" />
+                  Bộ lọc
+                </h6>
+                <Button variant="outline-secondary" size="sm" onClick={resetBookingFilters}>
+                  Xóa bộ lọc
+                </Button>
+              </div>
+            </Card.Header>
+            <Card.Body>
+              <Row>
+                <Col md={4}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Tìm kiếm</Form.Label>
+                    <InputGroup>
+                      <InputGroup.Text>
+                        <FaSearch />
+                      </InputGroup.Text>
+                      <Form.Control
+                        type="text"
+                        placeholder="Mã đơn, tên khách hàng, tour..."
+                        value={bookingFilter.keyword}
+                        onChange={(e) => setBookingFilter({ ...bookingFilter, keyword: e.target.value })}
+                      />
+                    </InputGroup>
+                  </Form.Group>
+                </Col>
+                <Col md={2}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Trạng thái</Form.Label>
+                    <Form.Select
+                      value={bookingFilter.status}
+                      onChange={(e) => setBookingFilter({ ...bookingFilter, status: e.target.value })}
+                    >
+                      <option value="">Tất cả</option>
+                      <option value="pending">Chờ xác nhận</option>
+                      <option value="confirmed">Đã xác nhận</option>
+                      <option value="paid">Đã thanh toán</option>
+                      <option value="cancelled">Đã hủy</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Từ ngày</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={bookingFilter.dateFrom}
+                      onChange={(e) => setBookingFilter({ ...bookingFilter, dateFrom: e.target.value })}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Đến ngày</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={bookingFilter.dateTo}
+                      onChange={(e) => setBookingFilter({ ...bookingFilter, dateTo: e.target.value })}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
 
           {loading ? (
             <div className="text-center py-5">
@@ -708,7 +1207,7 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
                     </tr>
                   </thead>
                   <tbody>
-                    {bookings.map((booking) => (
+                    {filteredBookings.map((booking) => (
                       <tr key={booking._id}>
                         <td className="px-4 py-3">
                           <code>{booking.bookingId}</code>
@@ -761,6 +1260,7 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
                     ))}
                   </tbody>
                 </Table>
+                {renderPagination(bookingPagination, handleBookingPageChange)}
               </Card.Body>
             </Card>
           )}
@@ -779,6 +1279,91 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
             <h4 className="mb-0">Danh sách Đánh giá</h4>
             <p className="text-muted mb-0">Quản lý tất cả các đánh giá từ khách hàng</p>
           </div>
+
+          {/* Review Filters */}
+          <Card className="mb-4">
+            <Card.Header className="bg-light">
+              <div className="d-flex justify-content-between align-items-center">
+                <h6 className="mb-0">
+                  <FaFilter className="me-2" />
+                  Bộ lọc
+                </h6>
+                <Button variant="outline-secondary" size="sm" onClick={resetReviewFilters}>
+                  Xóa bộ lọc
+                </Button>
+              </div>
+            </Card.Header>
+            <Card.Body>
+              <Row>
+                <Col md={3}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Tìm kiếm</Form.Label>
+                    <InputGroup>
+                      <InputGroup.Text>
+                        <FaSearch />
+                      </InputGroup.Text>
+                      <Form.Control
+                        type="text"
+                        placeholder="Tên khách hàng, tour, nội dung..."
+                        value={reviewFilter.keyword}
+                        onChange={(e) => setReviewFilter({ ...reviewFilter, keyword: e.target.value })}
+                      />
+                    </InputGroup>
+                  </Form.Group>
+                </Col>
+                <Col md={2}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Trạng thái</Form.Label>
+                    <Form.Select
+                      value={reviewFilter.status}
+                      onChange={(e) => setReviewFilter({ ...reviewFilter, status: e.target.value })}
+                    >
+                      <option value="">Tất cả</option>
+                      <option value="pending">Chờ duyệt</option>
+                      <option value="approved">Đã duyệt</option>
+                      <option value="rejected">Từ chối</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={2}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Đánh giá</Form.Label>
+                    <Form.Select
+                      value={reviewFilter.rating}
+                      onChange={(e) => setReviewFilter({ ...reviewFilter, rating: e.target.value })}
+                    >
+                      <option value="">Tất cả</option>
+                      <option value="5">5 sao</option>
+                      <option value="4">4 sao</option>
+                      <option value="3">3 sao</option>
+                      <option value="2">2 sao</option>
+                      <option value="1">1 sao</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={2}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Từ ngày</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={reviewFilter.dateFrom}
+                      onChange={(e) => setReviewFilter({ ...reviewFilter, dateFrom: e.target.value })}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Đến ngày</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={reviewFilter.dateTo}
+                      onChange={(e) => setReviewFilter({ ...reviewFilter, dateTo: e.target.value })}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
 
           {loading ? (
             <div className="text-center py-5">
@@ -801,7 +1386,7 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
                     </tr>
                   </thead>
                   <tbody>
-                    {reviews.map((review) => (
+                    {filteredReviews.map((review) => (
                       <tr key={review._id}>
                         <td className="px-4 py-3">{review.customerId?.fullName}</td>
                         <td className="py-3">{review.tourId?.tourName}</td>
@@ -846,6 +1431,7 @@ const NewBookingToast = ({ notification, onUpdateStatus }) => (
                     ))}
                   </tbody>
                 </Table>
+                {renderPagination(reviewPagination, handleReviewPageChange)}
               </Card.Body>
             </Card>
           )}

@@ -9,6 +9,7 @@ const Employee = require("../models/Employee")
 const Tour = require("../models/Tour")
 const Booking = require("../models/Booking")
 const Review = require("../models/Review")
+const Notification = require('../models/Notification');
 
 // Connect to MongoDB
 const connectDB = async () => {
@@ -40,6 +41,7 @@ async function seedData() {
     await Tour.deleteMany({})
     await Booking.deleteMany({})
     await Review.deleteMany({})
+    await Notification.deleteMany({});
 
     console.log("👤 Creating admin user...")
     // Create admin user
@@ -375,6 +377,49 @@ async function seedData() {
     status: "approved",
   },
 ]
+
+console.log('--- Bắt đầu tạo dữ liệu cho Notification ---');
+    const sampleCustomer = customers[0];
+    // FIX 1: Dùng `findOne` và `await` để lấy admin một cách chính xác.
+    // Employee.find() trả về một query, không phải là một object.
+    const sampleAdmin = await Employee.findOne({ role: 'admin' });
+
+    if (sampleCustomer && sampleAdmin) {
+      const notifications = [
+        {
+          recipient: sampleAdmin._id,
+          recipientModel: 'Employee',
+          sender: sampleCustomer._id,
+          senderModel: 'Customer',
+          type: 'new_booking',
+          message: `${sampleCustomer.fullName} vừa đặt một tour mới.`,
+          link: `/admin`
+        },
+        {
+          recipient: sampleCustomer._id,
+          recipientModel: 'Customer',
+          sender: sampleAdmin._id,
+          senderModel: 'Employee',
+          type: 'booking_confirmation',
+          message: 'Booking của bạn đã được quản trị viên xác nhận.',
+          link: '/bookings'
+        },
+        {
+          recipient: sampleAdmin._id,
+          recipientModel: 'Employee',
+          sender: sampleCustomer._id,
+          senderModel: 'Customer',
+          type: 'new_review',
+          message: `${sampleCustomer.fullName} đã để lại một đánh giá mới.`,
+          link: '/admin?tab=reviews'
+        }
+      ];
+
+      await Notification.insertMany(notifications);
+      console.log(`✅ ${notifications.length} thông báo mẫu đã được tạo.`);
+    } else {
+      console.log('⚠️ Không tìm thấy customer hoặc admin mẫu để tạo thông báo.');
+    }
 
     for (const reviewInfo of reviewData) {
   const review = new Review({

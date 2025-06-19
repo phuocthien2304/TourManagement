@@ -61,8 +61,6 @@ router.post("/", customerAuth, upload.array("images", 3),async (req, res) => {
 router.get("/average/:tourId", async (req, res) => {
   try {
     const { tourId } = req.params;
-    console.log(tourId);
-
     const result = await Review.aggregate([
       { $match: { tourId: new mongoose.Types.ObjectId(tourId) } },
       {
